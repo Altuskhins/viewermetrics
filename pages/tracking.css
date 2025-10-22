@@ -1,4 +1,10 @@
 /* Tracking page specific styles */
+body {
+  margin: 0;
+  padding: 0;
+  background: #0e0e10;
+}
+
 .tvm-tracking-container {
   min-height: 100vh;
   background: #0e0e10;
