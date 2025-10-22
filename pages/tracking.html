@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewer Metrics - Tracking</title>
+    <link rel="stylesheet" href="../ui/styles.css">
+    <link rel="stylesheet" href="tracking.css">
+</head>
+
+<body>
+    <div class="tvm-tracking-container">
+        <header class="tvm-tracking-header">
+            <div class="tvm-header-content">
+                <h1 id="tvm-tracking-title">Viewer Metrics</h1>
+                <div class="tvm-header-actions">
+                    <button id="tvm-close-btn" class="tvm-btn tvm-btn-secondary">Close & Stop Tracking</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="tvm-tracking-main">
+            <div id="tvm-tracking-content">
+                <div class="tvm-container">
+                    <div class="tvm-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button id="tvm-pause-resume" class="tvm-btn tvm-btn-small" style="display: none;">Pause
+                                    Graphs</button>
+                                <button id="tvm-history-mode-btn" class="tvm-tab tvm-history-mode-tab"
+                                    style="display: none;">
+                                    Live
+                                </button>
+                            </div>
+                            <div class="tvm-tabs" id="tvm-tabs" style="display: none;">
+                                <button class="tvm-tab tvm-tab-active" data-tab="graphs">Graphs</button>
+                                <button class="tvm-tab" data-tab="viewers">Viewers</button>
+                                <button class="tvm-tab" data-tab="settings">Settings</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tvm-content" class="tvm-content" style="display: none;">
+                        <div class="tvm-stats">
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Total Viewers / Authenticated Users / Authenticated
+                                    Non-Bots</span>
+                                <span id="tvm-total-viewers" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Authenticated Bots / Users Scanned</span>
+                                <span id="tvm-bots" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span id="tvm-api-data" class="tvm-stat-value"
+                                    style="font-size: 14px; line-height: 1.4;">
+                                    Users Found: <span id="tvm-authenticated">0</span><br>
+                                    Pending: <span id="tvm-pending">0</span><br>
+                                    Available: <span id="tvm-api-calls">0/500</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Tab Content Container -->
+                        <div class="tvm-tab-content">
+                            <!-- Graphs Tab -->
+                            <div id="tvm-tab-graphs" class="tvm-tab-panel tvm-tab-panel-active">
+                                <div id="tvm-graphs-wrapper" class="tvm-graphs-compact">
+                                    <div class="tvm-graph-container" style="padding-right: 5px;">
+                                        <canvas id="tvm-graph"></canvas>
+                                        <div class="tvm-watermark-left">@viewermetrics</div>
+                                        <div id="tvm-start-time" class="tvm-start-time">--</div>
+                                        <div class="tvm-stream-name"></div>
+                                    </div>
+
+                                    <div class="tvm-graph-container">
+                                        <canvas id="tvm-creation-graph"></canvas>
+                                        <div class="tvm-creation-left" id="tvm-creation-title">@viewermetrics</div>
+                                        <div class="tvm-creation-stats" id="tvm-creation-stats"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Viewers Tab -->
+                            <div id="tvm-tab-viewers" class="tvm-tab-panel">
+                                <div class="tvm-viewer-list" style="margin-top: 20px;">
+                                    <div class="tvm-pagination tvm-pagination-top" id="tvm-pagination-top"
+                                        style="display: none; margin-bottom: 10px;">
+                                        <button id="tvm-prev-top" class="tvm-btn tvm-btn-small">Previous</button>
+                                        <span id="tvm-page-info-top">Page 1 of 1</span>
+                                        <button id="tvm-next-top" class="tvm-btn tvm-btn-small">Next</button>
+                                    </div>
+
+                                    <div class="tvm-list-header">
+                                        <input type="text" id="tvm-search" placeholder="Search viewers..."
+                                            class="tvm-search">
+                                        <select id="tvm-sort" class="tvm-select">
+                                            <option value="timeInStream">Sort by Time</option>
+                                            <option value="username">Sort by Username</option>
+                                            <option value="createdAt">Sort by Created Date</option>
+                                        </select>
+                                        <select id="tvm-date-filter" class="tvm-select">
+                                            <option value="all">All Dates</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="tvm-list-content" id="tvm-list-content"
+                                        style="max-height: none; overflow: visible;">
+                                        <p class="tvm-empty">No viewers tracked yet</p>
+                                    </div>
+
+                                    <div class="tvm-pagination" id="tvm-pagination" style="display: none;">
+                                        <button id="tvm-prev" class="tvm-btn tvm-btn-small">Previous</button>
+                                        <span id="tvm-page-info">Page 1 of 1</span>
+                                        <button id="tvm-next" class="tvm-btn tvm-btn-small">Next</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Settings Tab -->
+                            <div id="tvm-tab-settings" class="tvm-tab-panel">
+                                <div class="tvm-columns"
+                                    style="display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap;">
+                                    <!-- Left Column: Settings (75% width) -->
+                                    <div class="tvm-settings-column" style="flex: 3; min-width: 400px; max-width: 75%;">
+                                        <div class="tvm-settings" style="margin-bottom: 20px; margin-top: 0;">
+                                            <div class="tvm-settings-panel" style="margin-top: 0;">
+                                                <div style="margin-bottom: 20px;">
+                                                    <label
+                                                        style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+                                                        <input type="checkbox" id="tvm-auto-adjust-request-interval">
+                                                        <div>
+                                                            Auto-adjust request interval based on authenticated users
+                                                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                                                &lt;500 users: 5s, &lt;1000 users: 2s, 1000+ users: 1s
+                                                            </div>
+                                                            <div id="tvm-effective-request-interval"
+                                                                style="font-size: 12px; color: #00ff88; margin-top: 5px; font-weight: bold; display: none;">
+                                                                Current effective interval: <span
+                                                                    id="tvm-effective-request-interval-value">--</span>
+                                                                seconds
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                    <div style="margin-left: 24px;">
+                                                        <label style="display: block; margin-bottom: 4px;">Request
+                                                            Interval (seconds):</label>
+                                                        <input type="number" id="tvm-interval" min="1" max="60"
+                                                            value="5" style="width: 120px;">
+                                                    </div>
+                                                </div>
+
+                                                <div style="margin-bottom: 20px;">
+                                                    <label
+                                                        style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+                                                        <input type="checkbox" id="tvm-auto-adjust-timeout">
+                                                        <div>
+                                                            Auto-adjust timeout based on authenticated users
+                                                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                                                Automatically calculates timeout: 5min for &lt;5000
+                                                                authenticated users, +1min per 1000 users
+                                                            </div>
+                                                            <div id="tvm-effective-timeout"
+                                                                style="font-size: 12px; color: #00ff88; margin-top: 5px; font-weight: bold; display: none;">
+                                                                Current effective timeout: <span
+                                                                    id="tvm-effective-timeout-value">--</span> minutes
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                    <div style="margin-left: 24px;">
+                                                        <label style="display: block; margin-bottom: 4px;">Timeout
+                                                            Duration (minutes):</label>
+                                                        <input type="number" id="tvm-timeout" min="5" max="60"
+                                                            value="10" style="width: 120px;">
+                                                    </div>
+                                                </div>
+
+                                                <div style="margin-bottom: 20px;">
+                                                    <label style="display: flex; align-items: flex-start; gap: 8px;">
+                                                        <input type="checkbox" id="tvm-auto-pause-graphs">
+                                                        <div>
+                                                            Auto-pause graphs when viewer count is 0
+                                                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                                                Automatically pauses graph updates after 5 minutes when
+                                                                viewer count reaches 0
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                </div>
+
+                                                <div style="margin-bottom: 20px;">
+                                                    <label style="display: flex; align-items: flex-start; gap: 8px;">
+                                                        <input type="checkbox" id="tvm-clean-graph-zero-data">
+                                                        <div>
+                                                            Clean graph data
+                                                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                                                Remove excessive zero viewer data from graph start
+                                                                (keeps only 5 minutes)
+                                                            </div>
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                                <div style="display: flex; gap: 10px; align-items: center;">
+                                                    <button id="tvm-reset-settings"
+                                                        class="tvm-btn tvm-btn-secondary">Reset to Defaults</button>
+                                                    <button id="tvm-save-settings" class="tvm-btn tvm-btn-primary">Save
+                                                        Settings</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right Column: Debug Info (25% width) -->
+                                    <div class="tvm-debug-column" style="flex: 1; min-width: 200px; max-width: 25%;">
+                                        <div class="tvm-debug" style="font-size: 12px; color: #666;">
+                                            <div id="tvm-debug-panel"
+                                                style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                                                <div id="tvm-debug-content">Loading...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../lib/chart.umd.min.js"></script>
+    <script src="../lib/chartjs-adapter-date-fns.min.js"></script>
+    <script src="../content/core/config-manager.js"></script>
+    <script src="../content/core/error-handler.js"></script>
+    <script src="../content/services/api-client.js"></script>
+    <script src="../content/services/enhanced-data-manager.js"></script>
+    <script src="../content/utils/format-utils.js"></script>
+    <script src="../content/utils/dom-utils.js"></script>
+    <script src="../content/utils/color-utils.js"></script>
+    <script src="../content/ui/html-templates.js"></script>
+    <script src="../content/charts/chart-utils.js"></script>
+    <script src="../content/charts/main-chart.js"></script>
+    <script src="../content/charts/creation-chart.js"></script>
+    <script src="../content/managers/stats-manager.js"></script>
+    <script src="../content/managers/viewer-list-manager.js"></script>
+    <script src="../content/managers/debug-manager.js"></script>
+    <script src="../content/ui/popup-manager.js"></script>
+    <script src="../content/ui/tab-manager.js"></script>
+    <script src="../content/ui/settings-ui-manager.js"></script>
+    <script src="../content/ui/ui-manager.js"></script>
+    <script src="../content/charts/chart-manager.js"></script>
+    <script src="../content/services/settings-manager.js"></script>
+    <script src="tracking.js"></script>
+</body>
+
+</html>

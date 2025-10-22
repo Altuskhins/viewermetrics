@@ -1,0 +1,50 @@
+/* Tracking page specific styles */
+.tvm-tracking-container {
+  min-height: 100vh;
+  background: #0e0e10;
+  color: #efeff1;
+  font-family: 'Roobert', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.tvm-tracking-header {
+  background: #18181b;
+  border-bottom: 1px solid #2e2e35;
+  padding: 16px 24px;
+}
+
+.tvm-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.tvm-tracking-header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #9147ff;
+}
+
+.tvm-tracking-main {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+#tvm-tracking-content {
+  background: #18181b;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #2e2e35;
+}
+
+/* Override container styles for standalone page */
+.tvm-container {
+  max-width: none;
+  margin: 0;
+}
+
+.tvm-header {
+  margin-bottom: 20px;
+}
