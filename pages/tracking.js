@@ -15,6 +15,9 @@ class TrackingPageManager {
   async init() {
     console.log('Tracking page initializing...');
 
+    // Set up beforeunload confirmation
+    this.setupBeforeUnloadConfirmation();
+
     // Check for existing tracking lock
     const canProceed = await this.checkTrackingLock();
     if (!canProceed) {
@@ -37,6 +40,59 @@ class TrackingPageManager {
     if (this.channelName) {
       await this.startTracking();
     }
+  }
+
+  setupBeforeUnloadConfirmation() {
+    // Intercept keyboard shortcuts for refresh
+    document.addEventListener('keydown', (e) => {
+      if (!this.isTracking) return;
+
+      // Check for F5 or Ctrl+R (refresh shortcuts)
+      const isRefresh = e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.ctrlKey && e.key === 'R');
+
+      if (isRefresh) {
+        e.preventDefault();
+
+        // Show custom confirmation dialog
+        const confirmed = confirm(
+          'You are currently tracking a channel. Refreshing will stop tracking and lose all data.\n\n' +
+          'Are you sure you want to refresh?'
+        );
+
+        if (confirmed) {
+          // User confirmed, allow refresh
+          this.isTracking = false;
+          location.reload();
+        }
+      }
+
+      // Check for Ctrl+W (close tab)
+      if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) {
+        if (this.isTracking) {
+          e.preventDefault();
+
+          const confirmed = confirm(
+            'You are currently tracking a channel. Closing this tab will stop tracking and lose all data.\n\n' +
+            'Are you sure you want to close?'
+          );
+
+          if (confirmed) {
+            this.isTracking = false;
+            window.close();
+          }
+        }
+      }
+    });
+
+    // Note: beforeunload only works after user interaction with the page
+    // This provides a fallback for navigation away from the page
+    window.addEventListener('beforeunload', (e) => {
+      if (this.isTracking) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
   }
 
   async checkTrackingLock() {
@@ -223,11 +279,7 @@ class TrackingPageManager {
       await this.closeAndStopTracking();
     });
 
-    // Handle page unload
-    window.addEventListener('beforeunload', async () => {
-      await this.cleanup();
-    });
-
+    // Handle page unload - cleanup only (confirmation handled in setupBeforeUnloadConfirmation)
     window.addEventListener('unload', async () => {
       await this.cleanup();
     });
@@ -359,6 +411,13 @@ class TrackingPageManager {
       this.isTracking = false;
       console.log('Stopped tracking');
     }
+  }
+
+  async closeAndStopTracking() {
+    // Set flag to prevent beforeunload confirmation
+    this.isTracking = false;
+    await this.cleanup();
+    window.close();
   }
 
   async initializeTrackingSystem() {
@@ -497,11 +556,6 @@ class TrackingPageManager {
     } catch (error) {
       console.error('Error handling background tracking update:', error);
     }
-  }
-
-  async closeAndStopTracking() {
-    await this.cleanup();
-    window.close();
   }
 
   async cleanup() {

@@ -321,10 +321,8 @@ window.EnhancedDataManager = class DataManager {
             removedCount++;
           }
         }
-        console.log(`DataManager delta sync: removed ${removedCount} viewers by username (efficient)`);
       } else if (cleanedViewers) {
         // Full sync fallback: clear and repopulate (expensive for large lists)
-        console.log(`DataManager full sync: ${oldViewerCount} viewers (memory intensive)`);
         this.state.viewers.clear();
 
         // Invalidate cache when data changes significantly
@@ -351,8 +349,6 @@ window.EnhancedDataManager = class DataManager {
       }
 
       const newViewerCount = this.state.viewers.size;
-
-      console.log(`DataManager sync complete: ${oldViewerCount} -> ${newViewerCount} viewers (${removedCount} removed)`);
 
       // Notify observers of the sync
       this.notify('viewersSynced', {
@@ -496,7 +492,7 @@ window.EnhancedDataManager = class DataManager {
 
       return processed;
     } catch (error) {
-      // log eerror to console for debugging
+      // Log error to console for debugging
       console.error('Error updating user info:', error);
       this.errorHandler?.handle(error, 'DataManager Update User Info', { userInfoArray });
       return [];
@@ -642,14 +638,18 @@ window.EnhancedDataManager = class DataManager {
     // Calculate total excluding top 5 months (for more accurate baseline)
     let totalPostStartAccountsExcludingTopx = totalPostStartAccounts;
     let monthsToIgnore = totalPostStartMonths < 20 ? 5 : 10; // Ignore more months if more data available
+    let totalPostStartMonthsExcludingTopx = totalPostStartMonths;
+
     if (postStartMonths.length > monthsToIgnore) {
-      // Sort months by count (descending) and exclude top 5
+      // Sort months by count (descending) and exclude top X months
       const sortedMonths = [...postStartMonths].sort((a, b) => b.count - a.count);
       const topxTotal = sortedMonths.slice(0, monthsToIgnore).reduce((sum, m) => sum + m.count, 0);
       totalPostStartAccountsExcludingTopx = totalPostStartAccounts - topxTotal;
+      totalPostStartMonthsExcludingTopx = totalPostStartMonths - monthsToIgnore;
     } else {
-      // If we have 5 or fewer months, use all of them (no exclusion)
+      // If we have monthsToIgnore or fewer months, use all of them (no exclusion)
       totalPostStartAccountsExcludingTopx = totalPostStartAccounts;
+      totalPostStartMonthsExcludingTopx = totalPostStartMonths;
     }
 
     return {
@@ -658,14 +658,25 @@ window.EnhancedDataManager = class DataManager {
       totalPostStartAccounts,
       totalPostStartMonths,
       totalPostStartAccountsExcludingTopx,
-      totalPostStartMonthsExcludingTopx: Math.max(0, totalPostStartMonths - monthsToIgnore),
+      totalPostStartMonthsExcludingTopx,
       averagePreStartAccounts
     };
   }
 
   // Helper: Calculate maximum expected accounts per month
   calculateMaxExpectedAccounts(totalPostStartMonthsExcludingTopx, totalPostStartExcludingTopx) {
+    // Safety check: prevent division by zero
+    if (totalPostStartMonthsExcludingTopx === 0 || !isFinite(totalPostStartMonthsExcludingTopx)) {
+      return 5; // Return minimum threshold if no valid data
+    }
+
     let maxExpected = Math.ceil((totalPostStartExcludingTopx / totalPostStartMonthsExcludingTopx) * 5);
+
+    // Ensure the result is finite and reasonable
+    if (!isFinite(maxExpected) || maxExpected < 0) {
+      return 5; // Return minimum threshold if calculation fails
+    }
+
     return Math.max(maxExpected, 5); // Minimum of 5
   }
 

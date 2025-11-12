@@ -1,7 +1,7 @@
 
 # Viewer Metrics Chrome Extension
 
-A Chrome extension that tracks and analyzes stream viewers with bot detection capabilities and comprehensive analytics.
+A Chrome extension that tracks and analyzes stream viewers with bot detection capabilities.
 
 ![Viewer Metrics Screenshot](assets/screenshot1.png)
 
@@ -15,7 +15,7 @@ A Chrome extension that tracks and analyzes stream viewers with bot detection ca
 
 ## ✨ Features
 
-- Track viewer counts and trends with live updating charts
+- Track viewer counts and authenticated users every minute
 - Monitor authenticated users and detect potential bot accounts
 - View detailed user profiles with following information
 - Automatically identifies suspicious account creation patterns
