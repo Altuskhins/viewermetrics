@@ -129,22 +129,28 @@ window.HTMLTemplates = class HTMLTemplates {
       return '<div class="tvm-empty">No following data available</div>';
     }
 
-    let html = '<div class="tvm-following-items">';
+    let html = '<div class="tvm-following-grid">';
 
     for (const follow of followingList) {
-      const followDate = new Date(follow.followedAt).toLocaleDateString();
+      const followDateTime = new Date(follow.followedAt);
+      const followDate = followDateTime.toLocaleDateString() + ' ' +
+        followDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       const avatarUrl = follow.user.profileImageURL || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/41780b5a-def8-11e9-94d9-784f43822e80-profile_image-300x300.png';
+
+      const createdDate = follow.user.createdAt ?
+        new Date(follow.user.createdAt).toLocaleDateString() :
+        '';
 
       html += `
         <div class="tvm-following-item" data-login="${follow.user.login}" data-followed="${follow.followedAt}">
-          <div class="tvm-following-user">
-            <img src="${avatarUrl}" alt="${follow.user.displayName}" class="tvm-following-avatar-small">
-            <div class="tvm-following-user-info">
-              <strong>${follow.user.displayName}</strong>
-              <span class="tvm-following-login">(@${follow.user.login})</span>
-            </div>
+          <div class="tvm-following-avatar">
+            <img src="${avatarUrl}" alt="${follow.user.displayName}" class="tvm-following-user-avatar">
           </div>
-          <div class="tvm-following-date">${followDate}</div>
+          <div class="tvm-following-info">
+            <div class="tvm-following-name">${follow.user.displayName}</div>
+            <div class="tvm-following-date">${followDate}</div>
+            ${createdDate ? `<div class="tvm-following-created">Created: ${createdDate}</div>` : ''}
+          </div>
         </div>
       `;
     }

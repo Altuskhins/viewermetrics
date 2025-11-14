@@ -670,6 +670,12 @@ window.EnhancedDataManager = class DataManager {
       return 5; // Return minimum threshold if no valid data
     }
 
+    // If we have less than 5 unique months, use default expected value of 5
+    // No big stream will have less than 5 unique months, so we shouldn't calculate from limited data
+    if (totalPostStartMonthsExcludingTopx < 5) {
+      return 5; // Return default threshold for insufficient data
+    }
+
     let maxExpected = Math.ceil((totalPostStartExcludingTopx / totalPostStartMonthsExcludingTopx) * 5);
 
     // Ensure the result is finite and reasonable

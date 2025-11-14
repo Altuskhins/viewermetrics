@@ -319,7 +319,7 @@ window.MainChart = class MainChart {
       chart.show(3);
     }
 
-    // Calculate max value and set y-axis max to 1.2x the highest value
+    // Calculate max value and set y-axis max to one step above the highest value
     if (history.length > 0) {
       const maxValue = Math.max(
         ...history.map(h => Math.max(
@@ -331,7 +331,22 @@ window.MainChart = class MainChart {
       );
 
       if (maxValue > 0) {
-        this.chart.options.scales.y.max = Math.ceil(maxValue * 1.2);
+        // Calculate a nice step size based on the max value
+        // This creates pretty numbers for the axis
+        const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+        let stepSize;
+
+        if (maxValue / magnitude < 2) {
+          stepSize = magnitude / 5; // e.g., 20, 200, 2000
+        } else if (maxValue / magnitude < 5) {
+          stepSize = magnitude / 2; // e.g., 50, 500, 5000
+        } else {
+          stepSize = magnitude; // e.g., 100, 1000, 10000
+        }
+
+        // Calculate how many steps are needed to reach maxValue, then add one more
+        const stepsNeeded = Math.ceil(maxValue / stepSize);
+        this.chart.options.scales.y.max = (stepsNeeded + 1) * stepSize;
       } else {
         delete this.chart.options.scales.y.max; // Remove max if no data
       }

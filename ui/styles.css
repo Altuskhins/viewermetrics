@@ -650,8 +650,8 @@
   border: 1px solid #2e2e35;
   border-radius: 8px;
   width: 90%;
-  max-width: 600px;
-  max-height: 80%;
+  max-width: 950px;
+  max-height: 85%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -804,67 +804,81 @@
 }
 
 .tvm-following-list {
-  max-height: 300px;
+  max-height: 500px;
   overflow-y: auto;
   border: 1px solid #2e2e35;
   border-radius: 4px;
   background: #1f1f23;
+  padding: 10px;
 }
 
-.tvm-following-items {
-  display: flex;
-  flex-direction: column;
+.tvm-following-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .tvm-following-item {
+  background: #18181b;
+  border: 1px solid #2e2e35;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 10px 15px;
-  border-bottom: 1px solid #2e2e35;
-  transition: background-color 0.2s;
-}
-
-.tvm-following-item:last-child {
-  border-bottom: none;
+  gap: 8px;
 }
 
 .tvm-following-item:hover {
   background: #262629;
+  border-color: #9147ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.tvm-following-user {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.tvm-following-avatar {
+  margin-bottom: 8px;
+  position: relative;
 }
 
-.tvm-following-avatar-small {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #2e2e35;
+.tvm-following-user-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  border: 2px solid #2e2e35;
   object-fit: cover;
-  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.tvm-following-user-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.tvm-following-info {
+  width: 100%;
+  text-align: center;
 }
 
-.tvm-following-login {
-  color: #adadb8;
-  font-size: 12px;
-  margin-left: 8px;
+.tvm-following-name {
+  font-weight: 600;
+  color: #efeff1;
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tvm-following-date {
   color: #adadb8;
-  font-size: 12px;
-  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.tvm-following-created {
+  color: #9147ff;
+  font-size: 11px;
+  margin-top: 2px;
 }
 
 .tvm-loading-spinner {

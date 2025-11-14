@@ -188,6 +188,16 @@ window.PopupManager = class PopupManager {
         return;
       }
 
+      // Following item click - open Twitch profile
+      const followingItem = event.target.closest('.tvm-following-item');
+      if (followingItem && followingItem.dataset.login) {
+        console.log('Following item clicked:', followingItem.dataset.login);
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(`https://twitch.tv/${followingItem.dataset.login}`, '_blank');
+        return;
+      }
+
       // Click outside to close (on popup background)
       if (event.target === popup) {
         console.log('Clicked outside popup, closing');

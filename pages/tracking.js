@@ -5,6 +5,7 @@ class TrackingPageManager {
     this.isTracking = false;
     this.trackingMetrics = null;
     this.debugUpdateInterval = null;
+    this.hasUserInteracted = false; // Track if user has interacted with page
 
     // Page ID for coordination
     this.pageId = 'tracking_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -43,6 +44,16 @@ class TrackingPageManager {
   }
 
   setupBeforeUnloadConfirmation() {
+    // Track user interaction to enable beforeunload
+    const markInteraction = () => {
+      this.hasUserInteracted = true;
+    };
+
+    // Listen for any user interaction
+    ['click', 'keydown', 'scroll', 'mousemove'].forEach(eventType => {
+      document.addEventListener(eventType, markInteraction, { once: true });
+    });
+
     // Intercept keyboard shortcuts for refresh
     document.addEventListener('keydown', (e) => {
       if (!this.isTracking) return;
@@ -84,10 +95,9 @@ class TrackingPageManager {
       }
     });
 
-    // Note: beforeunload only works after user interaction with the page
-    // This provides a fallback for navigation away from the page
+    // Only enable beforeunload after user interaction to avoid Chrome warning
     window.addEventListener('beforeunload', (e) => {
-      if (this.isTracking) {
+      if (this.isTracking && this.hasUserInteracted) {
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -274,6 +284,11 @@ class TrackingPageManager {
   }
 
   setupEventListeners() {
+    // Switch channel button
+    document.getElementById('tvm-switch-channel-btn')?.addEventListener('click', async () => {
+      await this.promptChannelSwitch();
+    });
+
     // Close button
     document.getElementById('tvm-close-btn')?.addEventListener('click', async () => {
       await this.closeAndStopTracking();
@@ -312,6 +327,25 @@ class TrackingPageManager {
       console.error('Error handling message:', error);
       sendResponse({ success: false, error: error.message });
     }
+  }
+
+  async promptChannelSwitch() {
+    // Prompt user for new channel name
+    const newChannelName = prompt(
+      'Enter the Twitch channel name to switch to:',
+      ''
+    );
+
+    // User cancelled or entered empty string
+    if (!newChannelName || !newChannelName.trim()) {
+      return;
+    }
+
+    // Clean up the channel name (remove @ symbol, trim, lowercase)
+    const cleanedChannelName = newChannelName.trim().toLowerCase().replace(/^@/, '');
+
+    // Switch to the new channel
+    await this.handleChannelSwitch(cleanedChannelName);
   }
 
   async handleChannelSwitch(newChannelName) {
@@ -414,6 +448,18 @@ class TrackingPageManager {
   }
 
   async closeAndStopTracking() {
+    // Show confirmation if tracking is active
+    if (this.isTracking) {
+      const confirmed = confirm(
+        'You are currently tracking a channel. Closing will stop tracking and lose all data.\n\n' +
+        'Are you sure you want to close?'
+      );
+
+      if (!confirmed) {
+        return; // User cancelled
+      }
+    }
+
     // Set flag to prevent beforeunload confirmation
     this.isTracking = false;
     await this.cleanup();
