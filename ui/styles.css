@@ -105,7 +105,7 @@
 /* Stats */
 .tvm-stats {
   display: grid;
-  grid-template-columns: 3fr 2fr 1fr;
+  grid-template-columns: 1.5fr 1.5fr 1.5fr 1.5fr 1fr 1fr;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -156,6 +156,22 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.tvm-stat-scanned {
+  padding: 8px 10px;
+}
+
+.tvm-scanned-breakdown {
+  font-size: 16px;
+  color: #efeff1;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+.tvm-scanned-line {
+  font-weight: 400;
+  color: #efeff1;
 }
 
 /* Graph */
@@ -309,6 +325,15 @@
   font-size: 10px;
   color: #666;
   font-style: italic;
+}
+
+.tvm-stream-stats-indicator input[type="range"] {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tvm-stream-stats:hover .tvm-stream-stats-indicator input[type="range"] {
+  opacity: 1;
 }
 
 .tvm-stream-stats-content {
@@ -1159,6 +1184,79 @@
 .tvm-smooth-lines-toggle input:checked+.tvm-smooth-lines-slider:before {
   transform: translateX(16px);
   background-color: #ffffff;
+}
+
+/* Skip Entries Control (Main Graph) */
+.tvm-skip-entries-control {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  background: rgba(14, 14, 16, 0.95);
+  border: 1px solid #2e2e35;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  z-index: 10;
+  min-width: 120px;
+}
+
+.tvm-graph-container:hover .tvm-skip-entries-control {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tvm-skip-entries-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tvm-skip-entries-label {
+  font-size: 11px;
+  color: #adadb8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tvm-skip-entries-value {
+  font-size: 12px;
+  color: #ffffff;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: right;
+}
+
+.tvm-skip-entries-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  accent-color: #9147ff;
+  background: #2e2e35;
+  border-radius: 2px;
+}
+
+.tvm-skip-entries-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #9147ff;
+  cursor: pointer;
+}
+
+.tvm-skip-entries-control input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #9147ff;
+  cursor: pointer;
+  border: none;
 }
 
 /* User Popup Styles */

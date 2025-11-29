@@ -902,33 +902,22 @@ window.EnhancedDataManager = class DataManager {
       // Structure: Map<month, Map<timeRounded, totalTime>>
       const heatmapData = new Map();
 
-      // First pass: collect all time values to determine max time for grouping
-      const allTimeValues = [];
-      for (const [username, trackingEntry] of this.timeTrackingData.entries()) {
-        const totalTimeMs = trackingEntry.currentTimeInStream + trackingEntry.pastTimeInStream;
-        const totalTimeMinutes = Math.round(totalTimeMs / 60000);
-        if (totalTimeMinutes > 0) {
-          allTimeValues.push(totalTimeMinutes);
+      // Fixed time buckets: 0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240 (minutes)
+      const timeBuckets = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
+
+      // Helper function to find the appropriate bucket for a given time
+      const findTimeBucket = (minutes) => {
+        if (minutes === 0) return 0;
+        if (minutes >= 240) return 240; // Cap at 240
+
+        // Find the bucket this time belongs to
+        for (let i = 0; i < timeBuckets.length - 1; i++) {
+          if (minutes > timeBuckets[i] && minutes <= timeBuckets[i + 1]) {
+            return timeBuckets[i + 1];
+          }
         }
-      }
-
-      // Determine grouping interval based on max time
-      const maxTime = allTimeValues.length > 0 ? Math.max(...allTimeValues) : 0;
-      let groupingInterval;
-
-      if (maxTime < 10) {
-        groupingInterval = 1; // 1-minute grouping
-      } else if (maxTime < 30) {
-        groupingInterval = 2; // 2-minute grouping
-      } else if (maxTime < 60) {
-        groupingInterval = 5; // 5-minute grouping
-      } else if (maxTime < 120) {
-        groupingInterval = 10; // 10-minute grouping
-      } else if (maxTime < 480) {
-        groupingInterval = 20; // 20-minute grouping
-      } else {
-        groupingInterval = 30; // 30-minute grouping
-      }
+        return 240; // Fallback to max bucket
+      };
 
       for (const [username, trackingEntry] of this.timeTrackingData.entries()) {
         const createdDate = new Date(trackingEntry.createdAt);
@@ -938,10 +927,8 @@ window.EnhancedDataManager = class DataManager {
         const totalTimeMs = trackingEntry.currentTimeInStream + trackingEntry.pastTimeInStream;
         const totalTimeMinutes = Math.ceil(totalTimeMs / 60000); // Convert to minutes, ceil to count any partial minute
 
-        // Round to nearest grouping interval (ceil ensures we round up to next bracket)
-        const timeRounded = Math.ceil(totalTimeMinutes / groupingInterval) * groupingInterval;
-
-        // Include all entries, even those with 0 time (they were in stream but left before next scan)
+        // Find the appropriate bucket for this time
+        const timeRounded = findTimeBucket(totalTimeMinutes);
 
         // Get or create month map
         if (!heatmapData.has(monthKey)) {

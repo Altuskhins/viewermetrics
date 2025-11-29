@@ -404,6 +404,19 @@ class TrackingPageManager {
       });
     }
 
+    // Setup skip entries slider for main graph
+    const skipEntriesSlider = document.getElementById('tvm-skip-entries-slider');
+    const skipEntriesValue = document.getElementById('tvm-skip-entries-value');
+    if (skipEntriesSlider && skipEntriesValue) {
+      skipEntriesSlider.addEventListener('input', (e) => {
+        const skipCount = parseInt(e.target.value);
+        skipEntriesValue.textContent = skipCount;
+        if (this.trackingMetrics && this.trackingMetrics.chartManager && this.trackingMetrics.chartManager.mainChart) {
+          this.trackingMetrics.chartManager.mainChart.setSkipEntries(skipCount);
+        }
+      });
+    }
+
     // Listen for auto-stop event
     document.addEventListener('tvm-graphs-auto-stopped', () => {
       this.updateLiveButton(true);
@@ -425,9 +438,19 @@ class TrackingPageManager {
         // Store the calculation type
         this.botCalculationType = calcType;
 
-        // Trigger bot detection recalculation if tracking is active
-        if (this.trackingMetrics?.dataManager) {
-          this.trackingMetrics.dataManager.detectBots();
+        // Update the chart displays if tracking is active
+        if (this.trackingMetrics?.chartManager) {
+          if (this.trackingMetrics.chartManager.mainChart) {
+            this.trackingMetrics.chartManager.mainChart.setBotCalculationType(calcType);
+          }
+          if (this.trackingMetrics.chartManager.heatmapChart) {
+            this.trackingMetrics.chartManager.heatmapChart.setBotCalculationType(calcType);
+          }
+        }
+
+        // Update stats display to reflect new calculation
+        if (this.trackingMetrics?.uiManager?.statsManager) {
+          this.trackingMetrics.uiManager.statsManager.updateStats();
         }
       });
     });

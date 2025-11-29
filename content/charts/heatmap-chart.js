@@ -7,7 +7,14 @@ window.HeatmapChart = class HeatmapChart {
         this.channelName = channelName;
         this.chart = null;
         this.filteredMonth = null; // Track which month is selected for stats filtering
-        this.retentionThresholdMinutes = 20; // Default 20 minutes, adjustable via slider (5-20 range)
+        this.retentionThresholdMinutes = 5; // Default 5 minutes, adjustable via slider (5-20 range)
+        this.botCalculationType = 0; // 0 = Normal, 1 = High Churn
+        this.summarySkipMinutes = 5; // Default 5 minutes, adjustable via slider (1-20 range)
+    }
+
+    setBotCalculationType(type) {
+        this.botCalculationType = type;
+        this.updateStreamStats();
     }
 
     setChannelName(channelName) {
@@ -160,6 +167,23 @@ window.HeatmapChart = class HeatmapChart {
         });
 
         this.update();
+
+        // Setup summary skip threshold slider
+        this.setupSummarySkipSlider();
+    }
+
+    setupSummarySkipSlider() {
+        const slider = document.getElementById('tvm-summary-skip-slider');
+        const label = document.getElementById('tvm-summary-skip-label');
+
+        if (!slider || !label) return;
+
+        slider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            this.summarySkipMinutes = value;
+            label.textContent = `After ${value}m`;
+            this.updateStreamStats();
+        });
     }
 
     update() {
@@ -434,10 +458,10 @@ window.HeatmapChart = class HeatmapChart {
                     ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
                     : `${mins}m`;
 
-                // Show colored bar if percentage >= 1%, black bar if count is 0, otherwise empty
+                // Show colored bar if percentage >= 1%, empty bar if count is 0, otherwise empty
                 let barHtml = '';
                 if (count === 0) {
-                    barHtml = '<div class="tvm-stats-bar" style="width: 100%; background: #000000;"></div>';
+                    barHtml = '<div class="tvm-stats-bar" style="width: 100%; background: #0e0e10;"></div>';
                 } else if (percentage >= 1) {
                     barHtml = `<div class="tvm-stats-bar" style="width: ${percentage}%;"></div>`;
                 }
@@ -506,7 +530,7 @@ window.HeatmapChart = class HeatmapChart {
                     <span style="color: #9147ff;">${overPercent}%</span>
                 </div>
                 <div class="tvm-retention-slider-control">
-                    <input type="range" class="tvm-retention-slider" min="5" max="20" step="1" value="${retentionThresholdMinutes}">
+                    <input type="range" class="tvm-retention-slider" min="0" max="2" step="1" value="${retentionThresholdMinutes === 5 ? 0 : retentionThresholdMinutes === 10 ? 1 : 2}">
                     <div class="tvm-retention-slider-label">${retentionThresholdMinutes}m threshold</div>
                 </div>
             `;
@@ -516,7 +540,10 @@ window.HeatmapChart = class HeatmapChart {
             const slider = retentionElement.querySelector('.tvm-retention-slider');
             if (slider) {
                 slider.addEventListener('input', (e) => {
-                    this.retentionThresholdMinutes = parseInt(e.target.value);
+                    const sliderValue = parseInt(e.target.value);
+                    // Map slider position to fixed values: 0=5min, 1=10min, 2=20min
+                    const thresholdValue = sliderValue === 0 ? 5 : sliderValue === 1 ? 10 : 20;
+                    this.retentionThresholdMinutes = thresholdValue;
                     this.update(); // Re-render with new threshold
                 });
             }
@@ -540,6 +567,7 @@ window.HeatmapChart = class HeatmapChart {
 
     updateStreamStats() {
         const statsContent = document.getElementById('tvm-stream-stats-content');
+        const labelElement = document.getElementById('tvm-summary-skip-label');
         const indicatorElement = document.querySelector('.tvm-stream-stats-indicator');
         if (!statsContent) return;
 
@@ -553,20 +581,8 @@ window.HeatmapChart = class HeatmapChart {
             return;
         }
 
-        // Calculate max authenticated to determine skip threshold
-        const maxAuthenticated = Math.max(...validHistory.map(h => h.totalAuthenticated));
-
-        // Calculate skip threshold using auto-timeout logic
-        // Uses TimeoutUtils if available, otherwise fallback to simple calculation
-        // Add 1 minute to account for timeout delay
-        let skipThresholdMinutes;
-        if (window.TimeoutUtils && window.TimeoutUtils.calculateAutoTimeout) {
-            const timeoutMs = window.TimeoutUtils.calculateAutoTimeout(maxAuthenticated);
-            skipThresholdMinutes = timeoutMs ? Math.round(timeoutMs / 60000) + 1 : 6;
-        } else {
-            // Fallback: max authenticated / 1000, minimum 5 minutes, +1 for delay
-            skipThresholdMinutes = Math.max(5, Math.round(maxAuthenticated / 1000)) + 1;
-        }
+        // Use stored skip threshold value
+        const skipThresholdMinutes = this.summarySkipMinutes;
 
         // Filter out entries within the skip threshold time period from the start
         // Calculate the cutoff timestamp based on the first valid entry
@@ -578,10 +594,12 @@ window.HeatmapChart = class HeatmapChart {
             validHistory = validHistory.filter(h => h.timestamp >= cutoffTimestamp);
         }
 
-        // Update the indicator text
+        // Update only the label text, not the entire indicator div
+        if (labelElement) {
+            labelElement.textContent = `After ${skipThresholdMinutes}m`;
+        }
         if (indicatorElement) {
-            indicatorElement.textContent = `After ${skipThresholdMinutes}m`;
-            indicatorElement.style.display = 'block';
+            indicatorElement.style.display = 'flex';
         }
 
         if (validHistory.length === 0) {
@@ -589,17 +607,35 @@ window.HeatmapChart = class HeatmapChart {
             return;
         }
 
-        // Calculate averages
+        // Calculate averages with calculation type support
         const avgViewers = Math.round(validHistory.reduce((sum, h) => sum + h.totalViewers, 0) / validHistory.length);
         const avgAuthenticated = Math.round(validHistory.reduce((sum, h) => sum + h.totalAuthenticated, 0) / validHistory.length);
-        const avgNonBots = Math.round(validHistory.reduce((sum, h) => sum + h.authenticatedNonBots, 0) / validHistory.length);
-        const avgBots = Math.round(validHistory.reduce((sum, h) => sum + h.bots, 0) / validHistory.length);
 
-        // Recalculate max values from filtered history
+        let avgNonBots, avgBots;
+        if (this.botCalculationType === 1) {
+            // High Churn mode
+            avgNonBots = Math.round(validHistory.reduce((sum, h) => sum + Math.max(0, (h.accountsWithDates || 0) - (h.bots || 0)), 0) / validHistory.length);
+            avgBots = Math.round(validHistory.reduce((sum, h) => sum + Math.max(0, (h.totalAuthenticated || 0) - ((h.accountsWithDates || 0) - (h.bots || 0))), 0) / validHistory.length);
+        } else {
+            // Normal mode
+            avgNonBots = Math.round(validHistory.reduce((sum, h) => sum + h.authenticatedNonBots, 0) / validHistory.length);
+            avgBots = Math.round(validHistory.reduce((sum, h) => sum + h.bots, 0) / validHistory.length);
+        }
+
+        // Recalculate max values from filtered history with calculation type support
         const maxViewers = Math.max(...validHistory.map(h => h.totalViewers));
         const maxAuthenticatedFiltered = Math.max(...validHistory.map(h => h.totalAuthenticated));
-        const maxNonBots = Math.max(...validHistory.map(h => h.authenticatedNonBots));
-        const maxBots = Math.max(...validHistory.map(h => h.bots));
+
+        let maxNonBots, maxBots;
+        if (this.botCalculationType === 1) {
+            // High Churn mode
+            maxNonBots = Math.max(...validHistory.map(h => Math.max(0, (h.accountsWithDates || 0) - (h.bots || 0))));
+            maxBots = Math.max(...validHistory.map(h => Math.max(0, (h.totalAuthenticated || 0) - ((h.accountsWithDates || 0) - (h.bots || 0)))));
+        } else {
+            // Normal mode
+            maxNonBots = Math.max(...validHistory.map(h => h.authenticatedNonBots));
+            maxBots = Math.max(...validHistory.map(h => h.bots));
+        }
 
         // Calculate percentages
         const avgAuthPercent = avgViewers > 0 ? Math.round((avgAuthenticated / avgViewers) * 100) : 0;
@@ -794,10 +830,10 @@ window.HeatmapChart = class HeatmapChart {
                 ? (mins > 0 ? `${hours}h ${mins}m` : `${hours}h`)
                 : `${mins}m`;
 
-            // Show colored bar if percentage >= 1%, black bar if count is 0, otherwise empty
+            // Show colored bar if percentage >= 1%, empty bar if count is 0, otherwise empty
             let barHtml = '';
             if (count === 0) {
-                barHtml = '<div class="tvm-stats-bar" style="width: 100%; background: #000000;"></div>';
+                barHtml = '<div class="tvm-stats-bar tvm-bot-stats-bar" style="width: 100%; background: #0e0e10;"></div>';
             } else if (percentage >= 1) {
                 barHtml = `<div class="tvm-stats-bar tvm-bot-stats-bar" style="width: ${percentage}%;"></div>`;
             }
@@ -855,7 +891,7 @@ window.HeatmapChart = class HeatmapChart {
                 <span style="color: #cc0000;">${overPercent}%</span>
             </div>
             <div class="tvm-retention-slider-control">
-                <input type="range" class="tvm-retention-slider" min="5" max="20" step="1" value="${retentionThresholdMinutes}">
+                <input type="range" class="tvm-retention-slider" min="0" max="2" step="1" value="${retentionThresholdMinutes === 5 ? 0 : retentionThresholdMinutes === 10 ? 1 : 2}">
                 <div class="tvm-retention-slider-label">${retentionThresholdMinutes}m threshold</div>
             </div>
         `;
@@ -865,7 +901,10 @@ window.HeatmapChart = class HeatmapChart {
         const slider = botRetentionElement.querySelector('.tvm-retention-slider');
         if (slider) {
             slider.addEventListener('input', (e) => {
-                this.retentionThresholdMinutes = parseInt(e.target.value);
+                const sliderValue = parseInt(e.target.value);
+                // Map slider position to fixed values: 0=5min, 1=10min, 2=20min
+                const thresholdValue = sliderValue === 0 ? 5 : sliderValue === 1 ? 10 : 20;
+                this.retentionThresholdMinutes = thresholdValue;
                 this.update(); // Re-render with new threshold
             });
         }

@@ -61,13 +61,27 @@
                     <div id="tvm-content" class="tvm-content" style="display: none;">
                         <div class="tvm-stats">
                             <div class="tvm-stat">
-                                <span class="tvm-stat-label">Total Viewers / Authenticated Users / Authenticated
-                                    Non-Bots</span>
-                                <span id="tvm-total-viewers" class="tvm-stat-value">0</span>
+                                <span class="tvm-stat-label">Viewers</span>
+                                <span id="tvm-viewers" class="tvm-stat-value">0</span>
                             </div>
                             <div class="tvm-stat">
-                                <span class="tvm-stat-label">Authenticated Bots / Users Scanned</span>
+                                <span class="tvm-stat-label">Authenticated</span>
+                                <span id="tvm-authenticated-users" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Authenticated Users</span>
+                                <span id="tvm-non-bots" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Authenticated Bots</span>
                                 <span id="tvm-bots" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat tvm-stat-scanned">
+                                <span class="tvm-stat-label">Scanned</span>
+                                <div id="tvm-scanned-breakdown" class="tvm-scanned-breakdown">
+                                    <div class="tvm-scanned-line">Bots: <span id="tvm-bots-count">0</span></div>
+                                    <div class="tvm-scanned-line">Users: <span id="tvm-users-count">0</span></div>
+                                </div>
                             </div>
                             <div class="tvm-stat">
                                 <span id="tvm-api-data" class="tvm-stat-value"
@@ -95,6 +109,15 @@
                                                 <input type="checkbox" id="tvm-smooth-lines-toggle" checked>
                                                 <span class="tvm-smooth-lines-slider"></span>
                                             </label>
+                                        </div>
+                                        <div class="tvm-skip-entries-control" id="tvm-skip-entries-control">
+                                            <div class="tvm-skip-entries-header">
+                                                <span class="tvm-skip-entries-label">Skip</span>
+                                                <span class="tvm-skip-entries-value"
+                                                    id="tvm-skip-entries-value">0</span>
+                                            </div>
+                                            <input type="range" id="tvm-skip-entries-slider" min="0" max="20" value="0"
+                                                step="1">
                                         </div>
                                     </div>
 
@@ -153,7 +176,13 @@
                                             <div class="tvm-stream-stats-content" id="tvm-stream-stats-content">
                                                 <!-- Stream stats will be populated here -->
                                             </div>
-                                            <div class="tvm-stream-stats-indicator">After 5m</div>
+                                            <div class="tvm-stream-stats-indicator"
+                                                style="display: flex; align-items: center; gap: 8px;">
+                                                <input type="range" id="tvm-summary-skip-slider" min="1" max="20"
+                                                    value="5"
+                                                    style="width: 80px; height: 4px; cursor: pointer; accent-color: #9147ff;">
+                                                <span id="tvm-summary-skip-label">After 5m</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

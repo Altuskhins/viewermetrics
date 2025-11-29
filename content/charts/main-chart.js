@@ -6,6 +6,18 @@ window.MainChart = class MainChart {
     this.errorHandler = errorHandler;
     this.channelName = channelName;
     this.chart = null;
+    this.botCalculationType = 0; // 0 = Normal, 1 = High Churn
+    this.skipEntries = 0; // Number of initial entries to skip from display (0-20)
+  }
+
+  setBotCalculationType(type) {
+    this.botCalculationType = type;
+    this.update();
+  }
+
+  setSkipEntries(count) {
+    this.skipEntries = Math.max(0, Math.min(20, count)); // Clamp between 0 and 20
+    this.update();
   }
 
   setChannelName(channelName) {
@@ -413,7 +425,14 @@ window.MainChart = class MainChart {
   update() {
     if (!this.chart) return;
 
-    const history = this.dataManager.getHistory();
+    let history = this.dataManager.getHistory();
+
+    // Skip initial entries based on skipEntries setting
+    // Cap at history.length - 1 to always show at least one point
+    const actualSkip = Math.min(this.skipEntries, Math.max(0, history.length - 1));
+    if (actualSkip > 0) {
+      history = history.slice(actualSkip);
+    }
 
     // Helper function to remove consecutive duplicate y-values
     const removeDuplicates = (data) => {
@@ -431,11 +450,30 @@ window.MainChart = class MainChart {
     };
 
     const totalViewersData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.totalViewers })));
-    const authenticatedNonBotsData = removeDuplicates(history.map(h => ({
-      x: h.timestamp,
-      y: h.authenticatedNonBots || 0
-    })));
-    const botsData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.bots || 0 })));
+
+    // Calculate display values based on calculation type
+    let authenticatedNonBotsData, botsData;
+
+    if (this.botCalculationType === 1) {
+      // High Churn mode: authenticatedNonBots = accountsWithDates - bots
+      //                  bots = totalAuthenticated - (accountsWithDates - bots)
+      authenticatedNonBotsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: Math.max(0, (h.accountsWithDates || 0) - (h.bots || 0))
+      })));
+      botsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: Math.max(0, (h.totalAuthenticated || 0) - ((h.accountsWithDates || 0) - (h.bots || 0)))
+      })));
+    } else {
+      // Normal mode: use original stored values
+      authenticatedNonBotsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: h.authenticatedNonBots || 0
+      })));
+      botsData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.bots || 0 })));
+    }
+
     const totalAuthenticatedData = removeDuplicates(history.map(h => ({
       x: h.timestamp,
       y: h.totalAuthenticated || 0
