@@ -20,7 +20,6 @@ window.SettingsUI = class SettingsUI {
             this.setChecked('tvm-auto-pause-graphs', config.autoPauseGraphsOnZeroViewers);
             this.setChecked('tvm-clean-graph-zero-data', config.cleanGraphZeroData);
             this.setValue('tvm-history-retention', config.historyRetentionHours);
-            this.setValue('tvm-bot-months-from-now', config.botDateRangeMonthsFromNow);
 
             // Disable inputs if auto-adjust is enabled
             this.toggleInput('tvm-timeout', config.autoAdjustTimeout);
@@ -64,7 +63,6 @@ window.SettingsUI = class SettingsUI {
             updates.autoPauseGraphsOnZeroViewers = this.getChecked('tvm-auto-pause-graphs');
             updates.cleanGraphZeroData = this.getChecked('tvm-clean-graph-zero-data');
             updates.historyRetentionHours = parseInt(this.getValue('tvm-history-retention')) || 12;
-            updates.botDateRangeMonthsFromNow = parseInt(this.getValue('tvm-bot-months-from-now')) || 0;
 
             // Save settings
             await this.settings.update(updates);

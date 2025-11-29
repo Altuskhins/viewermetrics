@@ -1,4 +1,7 @@
 // Enhanced Data Manager with observer pattern and better memory management
+// Bot detection constants
+const BOT_DATE_RANGE_MONTHS_FROM_NOW = 1; // Exclude accounts created in past 1 month from bot detection
+
 window.EnhancedDataManager = class DataManager {
   constructor(settingsManager, errorHandler, apiClient) {
     this.settingsManager = settingsManager;
@@ -573,7 +576,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       // Step 1: Build monthly and daily counts
       const { monthlyCounts, dayCounts } = this.buildAccountCreationCounts(startDate, endDate);
@@ -1337,7 +1340,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       const histogram = new Map();
 
@@ -1571,7 +1574,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       const monthsMap = new Map();
 
