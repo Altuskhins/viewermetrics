@@ -74,7 +74,7 @@ window.SettingsManager = class SettingsManager {
         autoPauseGraphsOnZeroViewers: {
             default: true,
             type: 'boolean',
-            description: 'Auto-pause graphs when no viewers'
+            description: 'Auto-stop tracking when no viewers'
         },
         autoPauseDelay: {
             default: 300000,
@@ -84,7 +84,7 @@ window.SettingsManager = class SettingsManager {
             unit: 'ms',
             uiUnit: 'min',
             convert: (val, toUI) => toUI ? val / 60000 : val * 60000,
-            description: 'Delay before auto-pausing graphs'
+            description: 'Delay before auto-stopping tracking'
         },
         cleanGraphZeroData: {
             default: true,
@@ -102,20 +102,6 @@ window.SettingsManager = class SettingsManager {
             default: '2021-01-01',
             type: 'date',
             description: 'Bot detection date range start'
-        },
-        botDateRangeMonthsFromNow: {
-            default: 0,
-            min: 0,
-            max: 12,
-            type: 'number',
-            description: 'Ignore new accounts in past x months'
-        },
-
-        // Migration flags (internal use only)
-        _migratedBotMonths: {
-            default: false,
-            type: 'boolean',
-            description: 'Migration flag for botDateRangeMonthsFromNow'
         },
 
         // Data Management
@@ -215,11 +201,6 @@ window.SettingsManager = class SettingsManager {
             unit: 'ms',
             description: 'Chart update throttle interval'
         },
-        smoothChartLines: {
-            default: true,
-            type: 'boolean',
-            description: 'Remove duplicate values for smoother chart lines'
-        },
         chartColors: {
             default: {
                 totalViewers: '#00ff88',
@@ -311,12 +292,13 @@ window.SettingsManager = class SettingsManager {
     validateAndSanitize(settings) {
         const sanitized = {};
 
+
         for (const [key, value] of Object.entries(settings)) {
             const schema = SettingsManager.SCHEMA[key];
 
+
             // Skip unknown settings (backward compatibility)
             if (!schema) {
-                console.warn(`Unknown setting: ${key}`);
                 continue;
             }
 
@@ -512,17 +494,6 @@ window.SettingsManager = class SettingsManager {
                 settings.chartColors.authenticatedNonBots = settings.chartColors.authenticatedUsers;
                 delete settings.chartColors.authenticatedUsers;
             }
-        }
-
-        // Migrate botDateRangeMonthsFromNow from old default of 2 to new default of 0
-        // Only migrate if the migration hasn't been done before (tracked by flag)
-        if (settings.botDateRangeMonthsFromNow === 2 && !settings._migratedBotMonths) {
-            settings.botDateRangeMonthsFromNow = 0;
-            settings._migratedBotMonths = true;
-            console.log('Migrated botDateRangeMonthsFromNow from 2 to 0 (new default)');
-        } else if (settings.botDateRangeMonthsFromNow !== undefined && !settings._migratedBotMonths) {
-            // Mark as migrated if it has any other value (user intentionally changed it)
-            settings._migratedBotMonths = true;
         }
 
         // Add more migrations as needed

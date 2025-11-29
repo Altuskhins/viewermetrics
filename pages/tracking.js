@@ -12,6 +12,9 @@ class TrackingPageManager {
     this.botThresholdOverride = null;
     this.botThresholdLocked = true;
 
+    // Bot calculation type (0 = Normal, 1 = High Churn, future options 2+)
+    this.botCalculationType = 0;
+
     // Page ID for coordination
     this.pageId = 'tracking_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
@@ -321,6 +324,9 @@ class TrackingPageManager {
     // Bot threshold slider controls
     this.setupBotThresholdControls();
 
+    // Bot calculation type toggle
+    this.setupBotCalculationToggle();
+
     // Handle page unload - cleanup only (confirmation handled in setupBeforeUnloadConfirmation)
     window.addEventListener('unload', async () => {
       await this.cleanup();
@@ -386,6 +392,83 @@ class TrackingPageManager {
         this.trackingMetrics.dataManager.detectBots();
       }
     });
+
+    // Setup smooth lines toggle for main graph
+    const smoothLinesToggle = document.getElementById('tvm-smooth-lines-toggle');
+    if (smoothLinesToggle) {
+      smoothLinesToggle.addEventListener('change', (e) => {
+        const isEnabled = e.target.checked;
+        if (this.trackingMetrics && this.trackingMetrics.chartManager && this.trackingMetrics.chartManager.mainChart) {
+          this.trackingMetrics.chartManager.mainChart.toggleSmoothLines();
+        }
+      });
+    }
+
+    // Setup skip entries slider for main graph
+    const skipEntriesSlider = document.getElementById('tvm-skip-entries-slider');
+    const skipEntriesValue = document.getElementById('tvm-skip-entries-value');
+    if (skipEntriesSlider && skipEntriesValue) {
+      skipEntriesSlider.addEventListener('input', (e) => {
+        const skipCount = parseInt(e.target.value);
+        skipEntriesValue.textContent = skipCount;
+        if (this.trackingMetrics && this.trackingMetrics.chartManager && this.trackingMetrics.chartManager.mainChart) {
+          this.trackingMetrics.chartManager.mainChart.setSkipEntries(skipCount);
+        }
+      });
+    }
+
+    // Listen for auto-stop event
+    document.addEventListener('tvm-graphs-auto-stopped', () => {
+      this.updateLiveButton(true);
+    });
+  }
+
+  setupBotCalculationToggle() {
+    const buttons = document.querySelectorAll('.tvm-bot-calc-btn');
+
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Get the calculation type from the button
+        const calcType = parseInt(button.getAttribute('data-calc-type'));
+
+        // Update active state
+        buttons.forEach(btn => btn.classList.remove('tvm-bot-calc-active'));
+        button.classList.add('tvm-bot-calc-active');
+
+        // Store the calculation type
+        this.botCalculationType = calcType;
+
+        // Update the chart displays if tracking is active
+        if (this.trackingMetrics?.chartManager) {
+          if (this.trackingMetrics.chartManager.mainChart) {
+            this.trackingMetrics.chartManager.mainChart.setBotCalculationType(calcType);
+          }
+          if (this.trackingMetrics.chartManager.heatmapChart) {
+            this.trackingMetrics.chartManager.heatmapChart.setBotCalculationType(calcType);
+          }
+        }
+
+        // Update stats display to reflect new calculation
+        if (this.trackingMetrics?.uiManager?.statsManager) {
+          this.trackingMetrics.uiManager.statsManager.updateStats();
+        }
+      });
+    });
+  }
+
+  updateLiveButton(isStopped) {
+    const liveButton = document.getElementById('tvm-history-mode-btn');
+    if (!liveButton) return;
+
+    if (isStopped) {
+      liveButton.textContent = 'End';
+      liveButton.className = 'tvm-tab tvm-history-mode-tab tvm-history-mode-stopped';
+      liveButton.style.cursor = 'default';
+    } else {
+      liveButton.textContent = 'Live';
+      liveButton.className = 'tvm-tab tvm-history-mode-tab tvm-history-mode-live';
+      liveButton.style.cursor = 'default';
+    }
   }
 
   updateBotThresholdValue(sliderValue) {
@@ -599,7 +682,7 @@ class TrackingPageManager {
     const apiClient = new window.BackgroundApiClient(errorHandler);
     const dataManager = new window.EnhancedDataManager(settingsManager, errorHandler, apiClient);
     const uiManager = new window.UIManager(dataManager, settingsManager, errorHandler, apiClient);
-    const chartManager = new window.ChartManager(dataManager, settingsManager, errorHandler, this.channelName, uiManager);
+    const chartManager = new window.ChartManager(dataManager, settingsManager, errorHandler, this.channelName, uiManager, apiClient);
 
     // Set chart manager reference in UI manager
     uiManager.chartManager = chartManager;

@@ -117,7 +117,8 @@ window.CreationChart = class CreationChart {
           },
           grid: {
             color: 'rgba(173, 173, 184, 0.1)',
-            drawBorder: false
+            drawBorder: false,
+            display: false // Remove vertical grid lines
           }
         },
         y: {

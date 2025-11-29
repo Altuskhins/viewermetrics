@@ -1,10 +1,11 @@
 // Chart Manager for handling chart operations with Chart.js
 window.ChartManager = class ChartManager {
-  constructor(dataManager, settingsManager, errorHandler, channelName = null, uiManager = null) {
+  constructor(dataManager, settingsManager, errorHandler, channelName = null, uiManager = null, apiClient = null) {
     this.dataManager = dataManager;
     this.settingsManager = settingsManager;
     this.errorHandler = errorHandler;
     this.uiManager = uiManager;
+    this.apiClient = apiClient;
     this.channelName = channelName;
     this.mainChart = new MainChart(dataManager, settingsManager, errorHandler, channelName);
     this.creationChart = new CreationChart(dataManager, settingsManager, errorHandler, uiManager);
@@ -69,9 +70,10 @@ window.ChartManager = class ChartManager {
           this.updateHeatmapChart();
           break;
         case 'historyPointChanged':
-          // Update both charts when history point changes
+          // Update all charts when history point changes
           this.updateGraphs();
           this.updateCreationChart();
+          this.updateHeatmapChart();
           break;
         case 'dataCleared':
           this.clearGraphs();
@@ -206,17 +208,25 @@ window.ChartManager = class ChartManager {
     }
   }
 
-  pauseGraphs() {
+  async pauseGraphs() {
     this.isPaused = true;
-    // Clear auto-pause timer since we're manually pausing
+    // Clear auto-pause timer since we're pausing
     if (this.autoPauseTimer) {
       clearTimeout(this.autoPauseTimer);
       this.autoPauseTimer = null;
     }
+    // Pause background tracking to stop API requests
+    if (this.apiClient) {
+      await this.apiClient.pauseBackgroundTracking();
+    }
   }
 
-  resumeGraphs() {
+  async resumeGraphs() {
     this.isPaused = false;
+    // Resume background tracking
+    if (this.apiClient) {
+      await this.apiClient.resumeBackgroundTracking();
+    }
     // Update graphs immediately when resuming
     if (this.isInitialized) {
       this.updateMainChart();
@@ -225,7 +235,7 @@ window.ChartManager = class ChartManager {
     }
   }
 
-  checkAutoPauseConditions() {
+  async checkAutoPauseConditions() {
     const config = this.settingsManager.get();
     if (!config.autoPauseGraphsOnZeroViewers) return;
 
@@ -234,11 +244,11 @@ window.ChartManager = class ChartManager {
 
     // If viewers dropped to 0 and we haven't started a timer yet
     if (currentViewers === 0 && this.lastViewerCount > 0 && !this.autoPauseTimer && !this.isPaused) {
-      this.autoPauseTimer = setTimeout(() => {
+      this.autoPauseTimer = setTimeout(async () => {
         if (!this.isPaused) {
-          this.pauseGraphs();
+          await this.pauseGraphs();
           // Dispatch event to update UI
-          const event = new CustomEvent('tvm-graphs-auto-paused');
+          const event = new CustomEvent('tvm-graphs-auto-stopped');
           document.dispatchEvent(event);
         }
       }, config.autoPauseDelay);

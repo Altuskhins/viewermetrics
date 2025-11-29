@@ -113,6 +113,16 @@ class BackgroundService {
           sendResponse(stopBgResult);
           break;
 
+        case 'PAUSE_BACKGROUND_TRACKING':
+          const pauseBgResult = await this.pauseBackgroundTracking(message.channelName);
+          sendResponse(pauseBgResult);
+          break;
+
+        case 'RESUME_BACKGROUND_TRACKING':
+          const resumeBgResult = await this.resumeBackgroundTracking(message.channelName);
+          sendResponse(resumeBgResult);
+          break;
+
         case 'GET_TRACKING_DATA':
           const trackingData = this.getTrackingData(message.channelName);
           sendResponse({ success: true, data: trackingData });
@@ -262,7 +272,8 @@ class BackgroundService {
           firstFailure: null,
           lastFailure: null
         },
-        isActive: true
+        isActive: true,
+        paused: false
       };
 
       this.trackingSessions.set(channelName, session);
@@ -273,6 +284,44 @@ class BackgroundService {
       return { success: true };
     } catch (error) {
       console.error('Error starting background tracking:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async pauseBackgroundTracking(channelName) {
+    try {
+      const session = this.trackingSessions.get(channelName);
+      if (!session) {
+        return { success: false, message: 'No active tracking session' };
+      }
+
+      console.log(`Pausing background tracking for ${channelName}`);
+      session.paused = true;
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error pausing background tracking:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async resumeBackgroundTracking(channelName) {
+    try {
+      const session = this.trackingSessions.get(channelName);
+      if (!session) {
+        return { success: false, message: 'No active tracking session' };
+      }
+
+      console.log(`Resuming background tracking for ${channelName}`);
+      session.paused = false;
+
+      // Immediately fetch fresh data
+      await this.backgroundFetchViewerList(session);
+      await this.backgroundFetchViewerCount(session);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error resuming background tracking:', error);
       return { success: false, error: error.message };
     }
   }
@@ -352,6 +401,11 @@ class BackgroundService {
   }
 
   async backgroundFetchViewerList(session) {
+    // Check if paused
+    if (session.paused) {
+      return;
+    }
+
     // Check if request is already in progress
     if (session.requestLocks.viewerList) {
       return;
@@ -423,6 +477,11 @@ class BackgroundService {
   }
 
   async backgroundFetchViewerCount(session) {
+    // Check if paused
+    if (session.paused) {
+      return;
+    }
+
     // Check if request is already in progress
     if (session.requestLocks.viewerCount) {
       return;
@@ -467,6 +526,11 @@ class BackgroundService {
   }
 
   async backgroundFetchUserInfo(session) {
+    // Check if paused
+    if (session.paused) {
+      return;
+    }
+
     // Check if request is already in progress
     if (session.requestLocks.userInfo) {
       return;

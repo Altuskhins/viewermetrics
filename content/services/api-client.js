@@ -104,6 +104,42 @@ window.BackgroundApiClient = class BackgroundTrackingClient {
     }
   }
 
+  async pauseBackgroundTracking() {
+    try {
+      if (!this.channelName) {
+        return { success: false, error: 'No active tracking session' };
+      }
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'PAUSE_BACKGROUND_TRACKING',
+        channelName: this.channelName
+      });
+
+      return response;
+    } catch (error) {
+      console.error('Error pausing background tracking:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async resumeBackgroundTracking() {
+    try {
+      if (!this.channelName) {
+        return { success: false, error: 'No active tracking session' };
+      }
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'RESUME_BACKGROUND_TRACKING',
+        channelName: this.channelName
+      });
+
+      return response;
+    } catch (error) {
+      console.error('Error stopping background tracking:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async updateTrackingConfig(config) {
     try {
       if (!this.channelName) {

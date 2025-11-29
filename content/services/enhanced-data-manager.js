@@ -1,4 +1,7 @@
 // Enhanced Data Manager with observer pattern and better memory management
+// Bot detection constants
+const BOT_DATE_RANGE_MONTHS_FROM_NOW = 1; // Exclude accounts created in past 1 month from bot detection
+
 window.EnhancedDataManager = class DataManager {
   constructor(settingsManager, errorHandler, apiClient) {
     this.settingsManager = settingsManager;
@@ -573,7 +576,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       // Step 1: Build monthly and daily counts
       const { monthlyCounts, dayCounts } = this.buildAccountCreationCounts(startDate, endDate);
@@ -902,33 +905,23 @@ window.EnhancedDataManager = class DataManager {
       // Structure: Map<month, Map<timeRounded, totalTime>>
       const heatmapData = new Map();
 
-      // First pass: collect all time values to determine max time for grouping
-      const allTimeValues = [];
-      for (const [username, trackingEntry] of this.timeTrackingData.entries()) {
-        const totalTimeMs = trackingEntry.currentTimeInStream + trackingEntry.pastTimeInStream;
-        const totalTimeMinutes = Math.round(totalTimeMs / 60000);
-        if (totalTimeMinutes > 0) {
-          allTimeValues.push(totalTimeMinutes);
+      // Fixed time buckets: 0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240 (minutes)
+      const timeBuckets = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240];
+
+      // Helper function to find the appropriate bucket for a given time
+      // Times less than 5 go to 0, less than 10 go to 5, etc.
+      const findTimeBucket = (minutes) => {
+        if (minutes < 5) return 0;
+        if (minutes >= 240) return 240; // Cap at 240
+
+        // Find the bucket this time belongs to (use lower boundary)
+        for (let i = timeBuckets.length - 1; i >= 0; i--) {
+          if (minutes >= timeBuckets[i]) {
+            return timeBuckets[i];
+          }
         }
-      }
-
-      // Determine grouping interval based on max time
-      const maxTime = allTimeValues.length > 0 ? Math.max(...allTimeValues) : 0;
-      let groupingInterval;
-
-      if (maxTime < 10) {
-        groupingInterval = 1; // 1-minute grouping
-      } else if (maxTime < 30) {
-        groupingInterval = 2; // 2-minute grouping
-      } else if (maxTime < 60) {
-        groupingInterval = 5; // 5-minute grouping
-      } else if (maxTime < 120) {
-        groupingInterval = 10; // 10-minute grouping
-      } else if (maxTime < 480) {
-        groupingInterval = 20; // 20-minute grouping
-      } else {
-        groupingInterval = 30; // 30-minute grouping
-      }
+        return 0; // Fallback to 0 bucket
+      };
 
       for (const [username, trackingEntry] of this.timeTrackingData.entries()) {
         const createdDate = new Date(trackingEntry.createdAt);
@@ -938,11 +931,8 @@ window.EnhancedDataManager = class DataManager {
         const totalTimeMs = trackingEntry.currentTimeInStream + trackingEntry.pastTimeInStream;
         const totalTimeMinutes = Math.ceil(totalTimeMs / 60000); // Convert to minutes, ceil to count any partial minute
 
-        // Round to nearest grouping interval (ceil ensures we round up to next bracket)
-        const timeRounded = Math.ceil(totalTimeMinutes / groupingInterval) * groupingInterval;
-
-        // Skip entries with 0 time
-        if (timeRounded === 0 && trackingEntry.pastTimeInStream === 0) continue;
+        // Find the appropriate bucket for this time
+        const timeRounded = findTimeBucket(totalTimeMinutes);
 
         // Get or create month map
         if (!heatmapData.has(monthKey)) {
@@ -1350,7 +1340,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       const histogram = new Map();
 
@@ -1584,7 +1574,7 @@ window.EnhancedDataManager = class DataManager {
       const config = this.settingsManager.get();
       const startDate = new Date(config.botDateRangeStart);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - config.botDateRangeMonthsFromNow);
+      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       const monthsMap = new Map();
 

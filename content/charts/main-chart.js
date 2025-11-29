@@ -6,6 +6,18 @@ window.MainChart = class MainChart {
     this.errorHandler = errorHandler;
     this.channelName = channelName;
     this.chart = null;
+    this.botCalculationType = 0; // 0 = Normal, 1 = High Churn
+    this.skipEntries = 0; // Number of initial entries to skip from display (0-20)
+  }
+
+  setBotCalculationType(type) {
+    this.botCalculationType = type;
+    this.update();
+  }
+
+  setSkipEntries(count) {
+    this.skipEntries = Math.max(0, Math.min(20, count)); // Clamp between 0 and 20
+    this.update();
   }
 
   setChannelName(channelName) {
@@ -33,6 +45,9 @@ window.MainChart = class MainChart {
 
     const config = this.settingsManager.get();
     const colors = config.chartColors;
+
+    // Initialize smooth lines state (default on, not persisted)
+    this.smoothLines = true;
 
     this.chart = new Chart(ctx, {
       type: 'line',
@@ -182,7 +197,8 @@ window.MainChart = class MainChart {
 
           grid: {
             color: 'rgba(173, 173, 184, 0.1)',
-            drawBorder: false
+            drawBorder: false,
+            display: false // Remove vertical grid lines
           }
         },
         y: {
@@ -279,7 +295,6 @@ window.MainChart = class MainChart {
       tooltipEl.style.opacity = '0';
       tooltipEl.style.pointerEvents = 'none';
       tooltipEl.style.position = 'absolute';
-      tooltipEl.style.transform = 'translate(-50%, -100%)';
       tooltipEl.style.transition = 'opacity 0.15s ease';
       tooltipEl.style.padding = '12px';
       tooltipEl.style.border = '1px solid #2e2e35';
@@ -354,9 +369,23 @@ window.MainChart = class MainChart {
     const config = this.settingsManager.get();
     const colors = config.chartColors;
 
-    // Calculate bot percentage
+    // Calculate values based on bot calculation type
     const totalAuthenticated = closestPoint.totalAuthenticated || 0;
-    const bots = closestPoint.bots || 0;
+    let bots, authenticatedNonBots;
+
+    if (this.botCalculationType === 1) {
+      // High Churn mode: matches graph calculation exactly
+      const accountsWithDates = closestPoint.accountsWithDates || 0;
+      const algorithmBots = closestPoint.bots || 0;
+      bots = Math.max(0, totalAuthenticated - (accountsWithDates - algorithmBots));
+      authenticatedNonBots = accountsWithDates - algorithmBots;
+    } else {
+      // Normal mode
+      bots = closestPoint.bots || 0;
+      authenticatedNonBots = closestPoint.authenticatedNonBots || 0;
+    }
+
+    // Calculate bot percentage
     const botPercentage = totalAuthenticated > 0 ? ((bots / totalAuthenticated) * 100).toFixed(1) : 0;
 
     let innerHTML = `<div style="font-weight: 600; margin-bottom: 6px; font-size: 13px;">${timeStr}</div>`;
@@ -372,7 +401,7 @@ window.MainChart = class MainChart {
     innerHTML += `
       <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
         <span style="width: 8px; height: 2px; background: ${colors.authenticatedNonBots || '#ffa500'};"></span>
-        <span>Authenticated Users: ${(closestPoint.authenticatedNonBots || 0).toLocaleString()}</span>
+        <span>Authenticated Users: ${Math.max(0, authenticatedNonBots).toLocaleString()}</span>
       </div>
     `;
 
@@ -394,21 +423,33 @@ window.MainChart = class MainChart {
 
     tooltipEl.innerHTML = innerHTML;
 
-    // Position the tooltip
+    // Position the tooltip in fixed top-left position relative to chart
     const position = context.chart.canvas.getBoundingClientRect();
 
     tooltipEl.style.opacity = '1';
-    tooltipEl.style.left = position.left + window.pageXOffset + tooltipModel.caretX + 'px';
-    tooltipEl.style.top = position.top + window.pageYOffset + tooltipModel.caretY + 'px';
-  } update() {
+    tooltipEl.style.left = position.left + window.pageXOffset + 10 + 'px';
+    tooltipEl.style.top = position.top + window.pageYOffset + 10 + 'px';
+  } toggleSmoothLines() {
+    this.smoothLines = !this.smoothLines;
+    this.update();
+    return this.smoothLines;
+  }
+
+  update() {
     if (!this.chart) return;
 
-    const history = this.dataManager.getHistory();
-    const smoothChartLines = this.settingsManager.get('smoothChartLines');
+    let history = this.dataManager.getHistory();
+
+    // Skip initial entries based on skipEntries setting
+    // Cap at history.length - 1 to always show at least one point
+    const actualSkip = Math.min(this.skipEntries, Math.max(0, history.length - 1));
+    if (actualSkip > 0) {
+      history = history.slice(actualSkip);
+    }
 
     // Helper function to remove consecutive duplicate y-values
     const removeDuplicates = (data) => {
-      if (!smoothChartLines || data.length <= 2) return data;
+      if (!this.smoothLines || data.length <= 2) return data;
 
       const result = [data[0]]; // Always keep first point
       for (let i = 1; i < data.length - 1; i++) {
@@ -422,11 +463,30 @@ window.MainChart = class MainChart {
     };
 
     const totalViewersData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.totalViewers })));
-    const authenticatedNonBotsData = removeDuplicates(history.map(h => ({
-      x: h.timestamp,
-      y: h.authenticatedNonBots || 0
-    })));
-    const botsData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.bots || 0 })));
+
+    // Calculate display values based on calculation type
+    let authenticatedNonBotsData, botsData;
+
+    if (this.botCalculationType === 1) {
+      // High Churn mode: authenticatedNonBots = accountsWithDates - bots
+      //                  bots = totalAuthenticated - (accountsWithDates - bots)
+      authenticatedNonBotsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: Math.max(0, (h.accountsWithDates || 0) - (h.bots || 0))
+      })));
+      botsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: Math.max(0, (h.totalAuthenticated || 0) - ((h.accountsWithDates || 0) - (h.bots || 0)))
+      })));
+    } else {
+      // Normal mode: use original stored values
+      authenticatedNonBotsData = removeDuplicates(history.map(h => ({
+        x: h.timestamp,
+        y: h.authenticatedNonBots || 0
+      })));
+      botsData = removeDuplicates(history.map(h => ({ x: h.timestamp, y: h.bots || 0 })));
+    }
+
     const totalAuthenticatedData = removeDuplicates(history.map(h => ({
       x: h.timestamp,
       y: h.totalAuthenticated || 0
@@ -437,13 +497,25 @@ window.MainChart = class MainChart {
     this.chart.data.datasets[2].data = botsData;
     this.chart.data.datasets[3].data = totalAuthenticatedData;
 
+    // Update tension and interpolation based on smooth lines setting
+    const tension = this.smoothLines ? 0.6 : 0;
+    const interpolationMode = this.smoothLines ? 'monotone' : 'default';
+    this.chart.data.datasets[0].tension = tension;
+    this.chart.data.datasets[0].cubicInterpolationMode = interpolationMode;
+    this.chart.data.datasets[1].tension = tension;
+    this.chart.data.datasets[1].cubicInterpolationMode = interpolationMode;
+    this.chart.data.datasets[2].tension = tension;
+    this.chart.data.datasets[2].cubicInterpolationMode = interpolationMode;
+    this.chart.data.datasets[3].tension = tension;
+    this.chart.data.datasets[3].cubicInterpolationMode = interpolationMode;
+
     // Hide point hover highlights when smooth lines are enabled
     // This prevents confusing hover indicators on interpolated curve points
-    const hoverRadius = smoothChartLines ? 0 : [6, 5, 5, 5];
-    this.chart.data.datasets[0].pointHoverRadius = smoothChartLines ? 0 : 6;
-    this.chart.data.datasets[1].pointHoverRadius = smoothChartLines ? 0 : 5;
-    this.chart.data.datasets[2].pointHoverRadius = smoothChartLines ? 0 : 5;
-    this.chart.data.datasets[3].pointHoverRadius = smoothChartLines ? 0 : 5;
+    const hoverRadius = this.smoothLines ? 0 : [6, 5, 5, 5];
+    this.chart.data.datasets[0].pointHoverRadius = this.smoothLines ? 0 : 6;
+    this.chart.data.datasets[1].pointHoverRadius = this.smoothLines ? 0 : 5;
+    this.chart.data.datasets[2].pointHoverRadius = this.smoothLines ? 0 : 5;
+    this.chart.data.datasets[3].pointHoverRadius = this.smoothLines ? 0 : 5;
 
     // Check if there are no bots present
     const hasNonZeroBots = botsData.some(point => point.y > 0);

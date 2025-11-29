@@ -42,6 +42,12 @@
                                 </div>
                             </div>
 
+                            <div class="tvm-bot-calc-toggle"
+                                style="position: absolute; left: 50%; transform: translateX(-50%); display: none;">
+                                <button class="tvm-bot-calc-btn tvm-bot-calc-active" data-calc-type="0">Normal</button>
+                                <button class="tvm-bot-calc-btn" data-calc-type="1">High Churn</button>
+                            </div>
+
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <div class="tvm-tabs" id="tvm-tabs" style="display: none;">
                                     <button class="tvm-tab tvm-tab-active" data-tab="graphs">Graphs</button>
@@ -55,13 +61,27 @@
                     <div id="tvm-content" class="tvm-content" style="display: none;">
                         <div class="tvm-stats">
                             <div class="tvm-stat">
-                                <span class="tvm-stat-label">Total Viewers / Authenticated Users / Authenticated
-                                    Non-Bots</span>
-                                <span id="tvm-total-viewers" class="tvm-stat-value">0</span>
+                                <span class="tvm-stat-label">Viewers</span>
+                                <span id="tvm-viewers" class="tvm-stat-value">0</span>
                             </div>
                             <div class="tvm-stat">
-                                <span class="tvm-stat-label">Authenticated Bots / Users Scanned</span>
+                                <span class="tvm-stat-label">Authenticated</span>
+                                <span id="tvm-authenticated-users" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Authenticated Users</span>
+                                <span id="tvm-non-bots" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat">
+                                <span class="tvm-stat-label">Authenticated Bots</span>
                                 <span id="tvm-bots" class="tvm-stat-value">0</span>
+                            </div>
+                            <div class="tvm-stat tvm-stat-scanned">
+                                <span class="tvm-stat-label">Scanned</span>
+                                <div id="tvm-scanned-breakdown" class="tvm-scanned-breakdown">
+                                    <div class="tvm-scanned-line">Bots: <span id="tvm-bots-count">0</span></div>
+                                    <div class="tvm-scanned-line">Total: <span id="tvm-users-count">0</span></div>
+                                </div>
                             </div>
                             <div class="tvm-stat">
                                 <span id="tvm-api-data" class="tvm-stat-value"
@@ -83,6 +103,22 @@
                                         <div class="tvm-watermark-left">@viewermetrics</div>
                                         <div id="tvm-start-time" class="tvm-start-time">--</div>
                                         <div class="tvm-stream-name"></div>
+                                        <div class="tvm-smooth-lines-control" id="tvm-smooth-lines-control">
+                                            <div class="tvm-smooth-lines-label">Smooth Lines</div>
+                                            <label class="tvm-smooth-lines-toggle">
+                                                <input type="checkbox" id="tvm-smooth-lines-toggle" checked>
+                                                <span class="tvm-smooth-lines-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="tvm-skip-entries-control" id="tvm-skip-entries-control">
+                                            <div class="tvm-skip-entries-header">
+                                                <span class="tvm-skip-entries-label">Skip</span>
+                                                <span class="tvm-skip-entries-value"
+                                                    id="tvm-skip-entries-value">0</span>
+                                            </div>
+                                            <input type="range" id="tvm-skip-entries-slider" min="0" max="20" value="0"
+                                                step="1">
+                                        </div>
                                     </div>
 
                                     <div class="tvm-graph-container">
@@ -119,7 +155,7 @@
                                             <div
                                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                                 <h4 id="tvm-heatmap-stats-title" style="margin: 0;">Viewer Duration
-                                                    Stats</h4>
+                                                </h4>
                                                 <button id="tvm-heatmap-stats-reset" class="tvm-btn tvm-btn-small"
                                                     style="display: none; padding: 4px 8px; font-size: 11px;">Reset</button>
                                             </div>
@@ -127,12 +163,26 @@
                                                 <!-- Stats will be populated here -->
                                             </div>
                                         </div>
+                                        <div class="tvm-bot-duration-stats" id="tvm-bot-duration-stats">
+                                            <div style="margin-bottom: 12px;">
+                                                <h4 style="margin: 0;">Bot Duration</h4>
+                                            </div>
+                                            <div class="tvm-heatmap-stats-content" id="tvm-bot-duration-stats-content">
+                                                <!-- Bot stats will be populated here -->
+                                            </div>
+                                        </div>
                                         <div class="tvm-stream-stats" id="tvm-stream-stats">
-                                            <h4 style="margin: 0 0 12px 0;">Stream Summary</h4>
+                                            <h4 style="margin: 0 0 12px 0;">Summary</h4>
                                             <div class="tvm-stream-stats-content" id="tvm-stream-stats-content">
                                                 <!-- Stream stats will be populated here -->
                                             </div>
-                                            <div class="tvm-stream-stats-indicator">After 5m</div>
+                                            <div class="tvm-stream-stats-indicator"
+                                                style="display: flex; align-items: center; gap: 8px;">
+                                                <input type="range" id="tvm-summary-skip-slider" min="0" max="20"
+                                                    value="5"
+                                                    style="width: 80px; height: 4px; cursor: pointer; accent-color: #9147ff;">
+                                                <span id="tvm-summary-skip-label">After 5m</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -259,18 +309,6 @@
                                                 </div>
 
                                                 <div style="margin-bottom: 20px;">
-                                                    <label style="display: flex; align-items: flex-start; gap: 8px;">
-                                                        <input type="checkbox" id="tvm-smooth-chart-lines">
-                                                        <div>
-                                                            Smooth chart lines
-                                                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
-                                                                Remove duplicate values for smoother chart lines
-                                                            </div>
-                                                        </div>
-                                                    </label>
-                                                </div>
-
-                                                <div style="margin-bottom: 20px;">
                                                     <label style="display: block; margin-bottom: 8px;">
                                                         History Retention (hours)
                                                         <div style="font-size: 12px; color: #999; margin-top: 5px;">
@@ -279,18 +317,6 @@
                                                     </label>
                                                     <input type="number" id="tvm-history-retention" min="1" max="72"
                                                         value="12" style="width: 120px;">
-                                                </div>
-
-                                                <div style="margin-bottom: 20px;">
-                                                    <label style="display: block; margin-bottom: 8px;">
-                                                        Ignore new accounts in past x months
-                                                        <div style="font-size: 12px; color: #999; margin-top: 5px;">
-                                                            Exclude recently created accounts from bot detection (0-12
-                                                            months, 0 = include all)
-                                                        </div>
-                                                    </label>
-                                                    <input type="number" id="tvm-bot-months-from-now" min="0" max="12"
-                                                        value="0" style="width: 120px;">
                                                 </div>
 
                                                 <div style="display: flex; gap: 10px; align-items: center;">

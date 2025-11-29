@@ -364,6 +364,12 @@ window.UIManager = class UIManager {
       historyBtn.style.display = 'block';
     }
 
+    // Show bot calculation toggle when content is shown
+    const botCalcToggle = document.querySelector('.tvm-bot-calc-toggle');
+    if (botCalcToggle) {
+      botCalcToggle.style.display = 'flex';
+    }
+
     // Initialize history mode button
     this.updateHistoryModeButton();
   }
