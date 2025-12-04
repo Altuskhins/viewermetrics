@@ -2,6 +2,9 @@
 
 All notable changes to the Viewer Metrics Chrome Extension will be documented in this file.
 
+## [0.9.92] - 2025-12-03
+- Fixed an issue with bot calculation
+
 ## [0.9.91] - 2025-12-03
 - Implement concurrent batch processing for user info requests to maximize throughput
 - Remove request-interceptor.js as we now use a simplified client ID that doesn't require auth token interception

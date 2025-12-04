@@ -594,13 +594,6 @@ window.EnhancedDataManager = class DataManager {
         baselineStats.totalPostStartAccountsExcludingTopx
       );
 
-      // Step 5: Cap maximum expected accounts to prevent extreme thresholds
-      // Only apply cap if we have pre-start baseline data to compare against
-      if (baselineStats.averagePreStartAccounts > 0 &&
-        maxExpectedAccounts > baselineStats.averagePreStartAccounts * 20) {
-        maxExpectedAccounts = Math.ceil(baselineStats.averagePreStartAccounts * 5);
-      }
-
       // Store the calculated threshold before applying any override
       if (window.trackingPageManager) {
         window.trackingPageManager.calculatedBotThreshold = maxExpectedAccounts;
