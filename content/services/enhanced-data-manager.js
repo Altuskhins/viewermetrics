@@ -32,6 +32,12 @@ window.EnhancedDataManager = class DataManager {
       cacheTimeout: settingsManager.get('viewerListCacheTimeout')
     };
 
+    // Aggregation caches (invalidated only when creation dates change)
+    this._monthsCache = null;
+    this._topMonthsCache = null;
+    this._topDaysCache = null;
+    this._lastCreationDateHash = null; // Track when createdAt data changes
+
     this.observers = new Set();
     this.pendingUserInfo = new Set();
     this.isActive = false;
@@ -60,8 +66,16 @@ window.EnhancedDataManager = class DataManager {
   }
 
   initCleanupInterval() {
-    // Run cleanup every minute for more responsive timeout adjustments
+    // Run cleanup every 15 seconds for more responsive timeout adjustments
+    // Skip cleanup in analysis mode (viewing historical data)
+    if (this.isAnalysisMode) {
+      return;
+    }
     this.cleanupInterval = setInterval(() => {
+      // Skip cleanup if we've entered analysis mode
+      if (this.isAnalysisMode) {
+        return;
+      }
       this.cleanup();
     }, this.settingsManager.get('cleanupInterval'));
   }
@@ -593,7 +607,7 @@ window.EnhancedDataManager = class DataManager {
       endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
 
       // Step 1: Build monthly and daily counts
-      const { monthlyCounts, dayCounts } = this.buildAccountCreationCounts(startDate, endDate);
+      const { monthlyCounts, dayCounts } = this.buildAccountCreationCounts();
 
       // Step 2: Set same-day account counts for each viewer
       this.setAccountsOnSameDay(dayCounts);
@@ -653,7 +667,7 @@ window.EnhancedDataManager = class DataManager {
   }
 
   // Helper: Build monthly and daily account creation counts
-  buildAccountCreationCounts(startDate, endDate) {
+  buildAccountCreationCounts() {
     const monthlyCounts = new Map();
     const dayCounts = new Map();
 
@@ -661,7 +675,6 @@ window.EnhancedDataManager = class DataManager {
       if (!viewer.createdAt) continue;
 
       const createdDate = new Date(viewer.createdAt);
-      if (createdDate > endDate) continue;
 
       const monthKey = createdDate.toISOString().split('T')[0].slice(0, 7); // YYYY-MM
       const dayKey = createdDate.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -865,6 +878,18 @@ window.EnhancedDataManager = class DataManager {
     this.state.metadata.accountsInBotRange = Math.round(result.totalAccounts);
     this.state.metadata.maxExpectedPostStartAccounts = Math.ceil(maxExpected);
     this.state.metadata.averagePreStartAccounts = Math.ceil(averagePreStart);
+
+    const allViewersWithDates = Array.from(this.state.viewers.values()).filter(v => v.createdAt);
+    this.state.metadata.accountsWithDates = allViewersWithDates.length;
+
+    // Calculate accounts from 2020 onwards for percentage display
+    const startRange = new Date('2020-01-01');
+    this.state.metadata.accountsFrom2020 = allViewersWithDates.filter(v => {
+      const createdDate = new Date(v.createdAt);
+      return createdDate >= startRange;
+    }).length;
+    this.state.metadata.accountsFrom2020WithoutBots = this.state.metadata.accountsFrom2020 - Math.round(result.totalBots);
+
   }
 
   // Time Tracking for Heatmap - Update current time in stream
@@ -1066,7 +1091,9 @@ window.EnhancedDataManager = class DataManager {
         maxExpectedPostStartAccounts: this.state.metadata.maxExpectedPostStartAccounts || 0,
         averagePreStartAccounts: this.state.metadata.averagePreStartAccounts || 0,
         usersFound: this.state.viewers.size || 0,
-        accountsWithDates: Array.from(this.state.viewers.values()).filter(v => v.createdAt).length || 0
+        accountsWithDates: Array.from(this.state.viewers.values()).filter(v => v.createdAt).length || 0,
+        accountsFrom2020: this.state.metadata.accountsFrom2020 || 0,
+        accountsFrom2020WithoutBots: this.state.metadata.accountsFrom2020WithoutBots || 0
       });
 
       // Limit history size
@@ -1310,6 +1337,16 @@ window.EnhancedDataManager = class DataManager {
             if (!a.createdAt) return 1;
             if (!b.createdAt) return -1;
             return new Date(a.createdAt) - new Date(b.createdAt);
+          case 'accountsOnSameDay':
+            // Sort by same day count, descending (highest first), then by username ascending
+            const aCount = a.accountsOnSameDay || 0;
+            const bCount = b.accountsOnSameDay || 0;
+            // Primary sort: by count descending
+            if (aCount !== bCount) {
+              return bCount - aCount;
+            }
+            // Secondary sort: by username ascending
+            return a.username.localeCompare(b.username);
           case 'timeInStream':
           default:
             // Handle null/undefined firstSeen values
@@ -1319,7 +1356,7 @@ window.EnhancedDataManager = class DataManager {
         }
       });
 
-      // Add computed properties
+      // Add computed properties (spread operator preserves all existing properties including accountsOnSameDay)
       viewers = viewers.map(viewer => ({
         ...viewer,
         timeInStream: viewer.firstSeen ? now - viewer.firstSeen : 0,
@@ -1369,6 +1406,109 @@ window.EnhancedDataManager = class DataManager {
     }
   }
 
+  // Get top botted months with counts (descending)
+  getTopBottedMonths(limit = 10) {
+    try {
+      // Generate hash of creation dates to detect changes
+      const currentHash = this._getCreationDateHash();
+      const cacheKey = `topMonths_${limit}`;
+
+      // Check cache first (invalidated only when creation dates change)
+      if (this._topMonthsCache && this._topMonthsCache.key === cacheKey &&
+        this._topMonthsCache.hash === currentHash) {
+        return this._topMonthsCache.data;
+      } const monthCounts = new Map();
+
+      // Count accounts per month
+      for (const viewer of this.state.viewers.values()) {
+        if (!viewer.createdAt) continue;
+
+        const date = new Date(viewer.createdAt);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthCounts.set(monthKey, (monthCounts.get(monthKey) || 0) + 1);
+      }
+
+      // Convert to array and sort by count descending, then by date descending (newest first)
+      const sortedMonths = Array.from(monthCounts.entries())
+        .map(([monthKey, count]) => {
+          const [year, month] = monthKey.split('-');
+          const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+          const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          return { monthKey, monthName, count, date };
+        })
+        .sort((a, b) => {
+          // Primary sort: by count descending
+          if (b.count !== a.count) return b.count - a.count;
+          // Secondary sort: by date descending (newest first)
+          return b.date - a.date;
+        })
+        .slice(0, limit);
+
+      // Cache the result with current hash
+      this._topMonthsCache = {
+        key: cacheKey,
+        data: sortedMonths,
+        hash: currentHash
+      };
+
+      return sortedMonths;
+    } catch (error) {
+      this.errorHandler?.handle(error, 'DataManager Get Top Botted Months');
+      return [];
+    }
+  }
+
+  // Get top same-day account counts (descending)
+  getTopSameDayCounts(limit = 25) {
+    try {
+      // Generate hash of creation dates to detect changes
+      const currentHash = this._getCreationDateHash();
+      const cacheKey = `topDays_${limit}`;
+
+      // Check cache first (invalidated only when creation dates change)
+      if (this._topDaysCache && this._topDaysCache.key === cacheKey &&
+        this._topDaysCache.hash === currentHash) {
+        return this._topDaysCache.data;
+      } const dayCounts = new Map();
+
+      // Count accounts per day
+      for (const viewer of this.state.viewers.values()) {
+        if (!viewer.createdAt) continue;
+
+        const date = new Date(viewer.createdAt);
+        const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        dayCounts.set(dayKey, (dayCounts.get(dayKey) || 0) + 1);
+      }
+
+      // Convert to array and sort by count descending, then by date descending (newest first)
+      const sortedDays = Array.from(dayCounts.entries())
+        .map(([dayKey, count]) => {
+          const date = new Date(dayKey);
+          const dayName = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+          return { dayKey, dayName, count, date };
+        })
+        .sort((a, b) => {
+          // Primary sort: by count descending
+          if (b.count !== a.count) return b.count - a.count;
+          // Secondary sort: by date descending (newest first)
+          return b.date - a.date;
+        })
+        .slice(0, limit);
+
+      // Cache the result with current hash
+      this._topDaysCache = {
+        key: cacheKey,
+        data: sortedDays,
+        hash: currentHash
+      };
+
+      return sortedDays;
+    } catch (error) {
+      this.errorHandler?.handle(error, 'DataManager Get Top Same Day Counts');
+      return [];
+    }
+  }
+
   // Schedule non-critical processing during idle time
   scheduleIdleProcessing(callback, data) {
     if (window.requestIdleCallback) {
@@ -1390,6 +1530,36 @@ window.EnhancedDataManager = class DataManager {
     this.viewerListCache.cachedResult = null;
     this.viewerListCache.lastParams = null;
     this.viewerListCache.lastCacheTime = 0;
+
+    // Aggregation caches are now hash-based and self-invalidate
+    // Only clear them on explicit data changes (imports, clears)
+  }
+
+  invalidateAggregationCaches() {
+    // Force invalidation of aggregation caches (used on data import/clear)
+    this._monthsCache = null;
+    this._topMonthsCache = null;
+    this._topDaysCache = null;
+    this._lastCreationDateHash = null;
+  }
+
+  _getCreationDateHash() {
+    // Generate a lightweight hash based on viewer count and creation dates
+    // This detects when new viewers with createdAt are added
+    let hash = this.state.viewers.size;
+    let createdAtCount = 0;
+
+    // Sample every 100th viewer to keep this fast (O(n/100) instead of O(n))
+    let i = 0;
+    for (const viewer of this.state.viewers.values()) {
+      if (i++ % 100 === 0 && viewer.createdAt) {
+        createdAtCount++;
+        // Mix in the timestamp to detect changes
+        hash = (hash * 31 + new Date(viewer.createdAt).getTime()) | 0;
+      }
+    }
+
+    return `${hash}_${createdAtCount}`;
   }
 
   getCreationDateHistogram() {
@@ -1508,6 +1678,7 @@ window.EnhancedDataManager = class DataManager {
         heatmapData: [] // Reset heatmap data
       };
 
+      this.invalidateAggregationCaches(); // Clear aggregation caches on data clear
       this.notify('dataCleared');
     } catch (error) {
       this.errorHandler?.handle(error, 'DataManager Clear');
@@ -1624,54 +1795,6 @@ window.EnhancedDataManager = class DataManager {
       descriptionPercentage: usersWithData.length > 0 ?
         Math.round((usersWithDescriptions.length / usersWithData.length) * 100) : 0
     };
-  }
-
-  getAvailableAccountCreationMonths() {
-    try {
-      const config = this.settingsManager.get();
-      const startDate = new Date(BOT_DATE_RANGE_START);
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() - BOT_DATE_RANGE_MONTHS_FROM_NOW);
-
-      const monthsMap = new Map();
-
-      // Get all viewers and count by month
-      const viewers = Array.from(this.state.viewers.values());
-
-      viewers.forEach(viewer => {
-        if (!viewer.createdAt) return;
-
-        const createdDate = new Date(viewer.createdAt);
-
-        // Check if date is within the bot detection range
-        if (createdDate < startDate || createdDate > endDate) return;
-
-        const year = createdDate.getFullYear();
-        const month = createdDate.getMonth() + 1;
-        const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
-        const monthLabel = createdDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-        if (!monthsMap.has(monthKey)) {
-          monthsMap.set(monthKey, {
-            value: monthKey,
-            label: monthLabel,
-            count: 0,
-            date: new Date(year, month - 1, 1) // For sorting
-          });
-        }
-
-        monthsMap.get(monthKey).count++;
-      });
-
-      // Convert to array and sort by date (newest first)
-      const monthsArray = Array.from(monthsMap.values());
-      monthsArray.sort((a, b) => b.date - a.date);
-
-      return monthsArray;
-    } catch (error) {
-      console.error('Error getting available months:', error);
-      return [];
-    }
   }
 
   // Export tracking data methods
@@ -1818,6 +1941,9 @@ window.EnhancedDataManager = class DataManager {
       if (this.heatmapEnabled) {
         this.processHeatmapData();
       }
+
+      // Invalidate aggregation caches after importing new data
+      this.invalidateAggregationCaches();
 
       // Notify all observers of the import and analysis mode
       this.notify('analysisMode', {
