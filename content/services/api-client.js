@@ -64,10 +64,20 @@ window.BackgroundApiClient = class BackgroundTrackingClient {
     try {
       this.channelName = channelName;
 
+      // Extension pages don't provide sender.tab in background, so capture our tab id explicitly
+      let currentTabId = null;
+      try {
+        const tab = await new Promise(resolve => chrome.tabs.getCurrent(resolve));
+        currentTabId = tab?.id || null;
+      } catch (error) {
+        console.warn('Could not determine current tab id for background tracking:', error);
+      }
+
       const response = await chrome.runtime.sendMessage({
         type: 'START_BACKGROUND_TRACKING',
         channelName,
-        config
+        config,
+        tabId: currentTabId
       });
 
       if (response.success) {
