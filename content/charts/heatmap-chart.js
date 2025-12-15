@@ -576,7 +576,7 @@ window.HeatmapChart = class HeatmapChart {
         if (!statsContent) return;
 
         // Get history data and filter out entries where viewers OR authenticated is 0
-        const history = this.dataManager.getHistory();
+        const history = this.dataManager.getHistory() || [];
         let validHistory = history.filter(h => h.totalViewers > 0 && h.totalAuthenticated > 0);
 
         if (validHistory.length === 0) {
@@ -608,6 +608,7 @@ window.HeatmapChart = class HeatmapChart {
 
         if (validHistory.length === 0) {
             statsContent.innerHTML = '<div style="color: #adadb8; text-align: center;">No data</div>';
+            if (indicatorElement) indicatorElement.style.display = 'none';
             return;
         }
 
