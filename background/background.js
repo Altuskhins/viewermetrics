@@ -90,7 +90,7 @@ class BackgroundService {
           const startBgResult = await this.startBackgroundTracking(
             message.channelName,
             message.config,
-            sender.tab.id
+            message.tabId || sender.tab?.id
           );
           sendResponse(startBgResult);
           break;
@@ -889,12 +889,23 @@ class BackgroundService {
 
   async sendTrackingUpdate(session, data) {
     try {
-      // Try to send message to the tab (works for content scripts and extension pages)
-      await chrome.tabs.sendMessage(session.tabId, {
-        type: 'BACKGROUND_TRACKING_UPDATE',
-        channelName: session.channelName,
-        data
-      });
+      const hasTabTarget = !!session.tabId;
+
+      if (hasTabTarget) {
+        // Try direct tab messaging first when we have a tab id
+        await chrome.tabs.sendMessage(session.tabId, {
+          type: 'BACKGROUND_TRACKING_UPDATE',
+          channelName: session.channelName,
+          data
+        });
+      } else {
+        // Extension pages may not supply sender.tab; fall back to runtime broadcast
+        await chrome.runtime.sendMessage({
+          type: 'BACKGROUND_TRACKING_UPDATE',
+          channelName: session.channelName,
+          data
+        });
+      }
 
       // Reset failure tracking on successful communication
       session.communicationFailures.count = 0;
@@ -918,7 +929,7 @@ class BackgroundService {
 
       } catch (runtimeError) {
         // Both methods failed - tab might be closed or content script not ready
-        console.log(`Could not send tracking update to tab ${session.tabId} (failure ${session.communicationFailures.count + 1}):`, error.message);
+        console.log(`Could not send tracking update to tab ${session.tabId} (failure ${session.communicationFailures.count + 1})`, error.message);
 
         // Track communication failure
         const now = Date.now();
@@ -947,6 +958,11 @@ class BackgroundService {
 
   async checkSessionHealth(session) {
     try {
+      // If we don't have a tab target (extension page), skip tab health checks
+      if (!session.tabId) {
+        return;
+      }
+
       // Only check if we have recent communication failures
       if (session.communicationFailures.firstFailure) {
         const now = Date.now();
