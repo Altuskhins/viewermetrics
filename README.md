@@ -19,7 +19,7 @@ A Chrome extension that tracks and analyzes stream viewers with bot detection ca
 1. Download the [latest release](https://github.com/viewermetrics/viewermetrics/releases/tag/v0.9.951) or clone this repository.
 2. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
 3. Click "Load Temporary Add-on".
-4. In the file picker, select the `manifest.json` file in the project folder to load the extension.
+4. In the file picker, select **`manifest.firefox.json`** (not `manifest.json`). This manifest uses the bundled `background/background.firefox.js` non-module script so Firefox can load the background logic.
 5. The extension will stay active for the current session; repeat these steps to reload it after restarting Firefox.
 
 ## ✨ Features
