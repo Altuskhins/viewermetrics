@@ -18,6 +18,7 @@
         "*://*.twitch.tv/*"
       ],
       "js": [
+        "shared/browser-polyfill.js",
         "content/core/settings-manager.js",
         "content/core/error-handler.js",
         "content/ui/html-templates.js",
