@@ -193,6 +193,10 @@ window.HeatmapChart = class HeatmapChart {
             const heatmapData = this.dataManager.getHeatmapData();
 
             if (!heatmapData || heatmapData.length === 0) {
+                // Ensure the UI still shows helpful stats placeholders even without heatmap data
+                this.updateViewerStats([], [], 1, this.filteredMonth);
+                this.updateStreamStats();
+
                 this.chart.data.labels = [];
                 this.chart.data.datasets = [];
                 this.chart.update('none');
