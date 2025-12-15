@@ -247,7 +247,6 @@ window.StatsManager = class StatsManager {
 
   updateBotRatioDisplay() {
     try {
-      return; // Disabled for now
       const botRatioInfo = document.getElementById('tvm-actual-viewers-stats');
       if (!botRatioInfo) return;
 
