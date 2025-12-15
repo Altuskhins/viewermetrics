@@ -193,6 +193,10 @@ window.HeatmapChart = class HeatmapChart {
             const heatmapData = this.dataManager.getHeatmapData();
 
             if (!heatmapData || heatmapData.length === 0) {
+                // Ensure the UI still shows helpful stats placeholders even without heatmap data
+                this.updateViewerStats([], [], 1, this.filteredMonth);
+                this.updateStreamStats();
+
                 this.chart.data.labels = [];
                 this.chart.data.datasets = [];
                 this.chart.update('none');
@@ -572,7 +576,7 @@ window.HeatmapChart = class HeatmapChart {
         if (!statsContent) return;
 
         // Get history data and filter out entries where viewers OR authenticated is 0
-        const history = this.dataManager.getHistory();
+        const history = this.dataManager.getHistory() || [];
         let validHistory = history.filter(h => h.totalViewers > 0 && h.totalAuthenticated > 0);
 
         if (validHistory.length === 0) {
@@ -604,6 +608,7 @@ window.HeatmapChart = class HeatmapChart {
 
         if (validHistory.length === 0) {
             statsContent.innerHTML = '<div style="color: #adadb8; text-align: center;">No data</div>';
+            if (indicatorElement) indicatorElement.style.display = 'none';
             return;
         }
 
