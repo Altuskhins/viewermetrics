@@ -10,7 +10,10 @@
     "*://*.twitch.tv/*"
   ],
   "background": {
-    "page": "background/background.html"
+    "scripts": [
+      "background/background.firefox.js"
+    ],
+    "persistent": false
   },
   "content_scripts": [
     {
